@@ -90,7 +90,9 @@ async def get_messages(ctx, channel_id: int, start_date: str, end_date: str, aut
 
 
 	# Write messages to a text file
-	file_name = f"{author}'s messages {start_date.strftime('%m-%d-%Y')} to {end_date.strftime('%m-%d-%Y')}.txt"
+	# Define the file path in the "logs" folder
+	os.makedirs("logs", exist_ok=True)
+	file_name = f"logs/{author}'s messages {start_date.strftime('%m-%d-%Y')} to {end_date.strftime('%m-%d-%Y')}.txt"
 	with open(file_name, "w", encoding="utf-8") as file:
 		file.writelines(messages)
 
