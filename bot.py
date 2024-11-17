@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 from discord.ext import commands
 from PIL import Image
 from datetime import datetime
+from app import add_message
+import json
 
 
 
@@ -106,6 +108,21 @@ async def get_messages(ctx, channel_id: int, start_date: str, end_date: str, aut
 
 	# Send the file
 	await ctx.send("Here is the messages file:", file=discord.File(file_name))
+	
+	# send messages to site
+    # Load existing messages
+	try:
+		with open("messages.json", "r") as file:
+			cur_messages = json.load(file)
+	except FileNotFoundError:
+		cur_messages = []
+	
+ 
+	for msg in messages:
+		cur_messages.append(msg)
+ 
+	with open("messages.json", "w") as file:
+		json.dump(messages, file)
 
 @bot.command(name='shutdown')
 async def shutdown(ctx):
