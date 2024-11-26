@@ -10,11 +10,14 @@ from PIL import Image
 from datetime import datetime
 from app import add_message
 import json
+import openai
+from openai import OpenAI
 
 
 
 load_dotenv()
 token = 'NzcwOTU3MDU2NjE4MTM1NTUz.GhEOVg.Po-iJ21WZ9ZUqt6F3C6GfP7ZnoQV7y2n1Qu53U'
+openai.api_key = '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'
 
 intents = discord.Intents.all() 
 client = discord.Client(intents=intents)
@@ -129,5 +132,22 @@ async def shutdown(ctx):
 	await ctx.send("Shutting down...")
 	await bot.close()  # Safely closes the bot connection
 
-    
+@bot.command(name='ask')
+async def ask(ctx, *, query: str):
+    try:
+        # build a response object
+        response = openai.ChatCompletion.create(
+			model = "gpt-3.5-turbo",
+			messages = [
+				{"role": "system", "content": "All I know is slavery and toil"},
+    			{"role": "user", "content": query}
+			]
+		)
+        
+		# Extract and send the response
+        answer = response['choices'][0]['message']['content']
+        await ctx.send(answer)
+
+    except Exception as e:
+        await ctx.send(f"poop, I failed: {e}")
 bot.run(token)
