@@ -138,15 +138,19 @@ async def get_messages(ctx, channel_id, start_date, end_date, author="default"):
 	await ctx.send("Here is the messages file:", file=discord.File(file_name))
 
 @bot.command(name='word', help="picks a random word")    
-async def word(ctx):
-    # Get all lemmas in WordNet
+async def word(ctx, word=""):
+	word_length = len(word)
+
+	# Get all lemmas in WordNet
 	all_lemmas = list(wordnet.all_lemma_names())
 
+
 	# Pick a random word
-	random_word = random.choice(all_lemmas)
-	synsets = wordnet.synsets(random_word)
- 
-	await ctx.send(f"Your word is: {random_word.replace('_', ' ')}")
+	if word_length == 0:
+		word = random.choice(all_lemmas)
+	synsets = wordnet.synsets(word)
+
+	await ctx.send(f"Your{' **random**' if word_length == 0 else ''} word is: **{word.replace('_', ' ')}**")
 
 	if synsets:
 		for s in synsets:
@@ -154,6 +158,8 @@ async def word(ctx):
 			await ctx.send(definition_text)
 	else:
 		await ctx.send("No definitions found.")
+
+
 
 @bot.command(name='shutdown', help="this kills the bot")
 async def shutdown(ctx):
