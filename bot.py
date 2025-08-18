@@ -4,20 +4,26 @@ import os
 import random
 import asyncio
 import time
-from dotenv import load_dotenv
 from discord.ext import commands
 from PIL import Image
 from datetime import datetime
-from app import add_message
 import json
-import openai
-from openai import OpenAI
+import nltk
+from nltk.corpus import wordnet
+import random
 
 
 
-load_dotenv()
+import requests
+
+
+# TODO: make global constants that are somehow protected or add to zhsrc file
 token = 'NzcwOTU3MDU2NjE4MTM1NTUz.GhEOVg.Po-iJ21WZ9ZUqt6F3C6GfP7ZnoQV7y2n1Qu53U'
-openai.api_key = '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'
+hfs2sKey = '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'
+model_id = "meta-llama/Llama-3.2-1B"
+
+url = "http://localhost:11434/api/chat"
+
 
 intents = discord.Intents.all() 
 client = discord.Client(intents=intents)
@@ -32,15 +38,18 @@ intents.voice_states = True
 # Create bot instance and set command prefix
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# run only the first time
+nltk.download('wordnet')
+
 @client.event
 async def on_ready():
     print("Bot is connected to Discord")
 
-@bot.command()
+@bot.command(help="tell's you what you need to know about yourself")
 async def gay(ctx):
 	await ctx.channel.send(ctx.author.mention + " you are " + str(random.randint(0, 100)) + "% gay")
 
-@bot.command()      
+@bot.command(help="see how big you are!")      
 async def penis(ctx):
 	shaft = ""
 	len = random.randint(1, 100)
@@ -48,17 +57,33 @@ async def penis(ctx):
 		shaft += "="
 	await ctx.channel.send(ctx.author.mention + " your cock is  8" + shaft + "D long")
 	
-@bot.command()      
+@bot.command(help="who's that pokemon?")   
 async def pokemon(ctx):
+    # this actually won't work if run on non desktop local machine 
+      
 	images_dir = '/Users/Sajid/Desktop/img'
 	images = os.listdir(images_dir)
 	image_filename = random.choice(images)
 	image_path = os.path.join(images_dir, image_filename)
+ 
 	with open(image_path, 'rb') as f:
 	    await ctx.channel.send(ctx.author.mention, file=discord.File(f, "poke.png"))
 		
-@bot.command(name='get_messages')
-async def get_messages(ctx, channel_id: int, start_date: str, end_date: str, author="default"):
+@bot.command(
+    name="get_messages",
+    help="""
+Fetches messages from a channel.
+Arguments:
+  channel_id: ID of the channel to fetch messages from
+  start_date: Start date in YYYY-MM-DD format
+  end_date: End date in YYYY-MM-DD format
+  author: (Optional) Filter by author username
+"""
+)
+
+
+async def get_messages(ctx, channel_id, start_date, end_date, author="default"):
+    
 # Convert the date strings to datetime objects
 	start_date = datetime.strptime(start_date, "%m-%d-%Y")
 	end_date = datetime.strptime(end_date, "%m-%d-%Y")
@@ -111,43 +136,39 @@ async def get_messages(ctx, channel_id: int, start_date: str, end_date: str, aut
 
 	# Send the file
 	await ctx.send("Here is the messages file:", file=discord.File(file_name))
-	
-	# send messages to site
-    # Load existing messages
-	try:
-		with open("messages.json", "r") as file:
-			cur_messages = json.load(file)
-	except FileNotFoundError:
-		cur_messages = []
-	
- 
-	for msg in messages:
-		cur_messages.append(msg)
- 
-	with open("messages.json", "w") as file:
-		json.dump(messages, file)
 
-@bot.command(name='shutdown')
+@bot.command(name='word', help="picks a random word")    
+async def word(ctx):
+    # Get all lemmas in WordNet
+	all_lemmas = list(wordnet.all_lemma_names())
+
+	# Pick a random word
+	random_word = random.choice(all_lemmas)
+	synsets = wordnet.synsets(random_word)
+ 
+	await ctx.send(f"Your word is: {random_word.replace('_', ' ')}")
+
+	if synsets:
+		for s in synsets:
+			definition_text = f"**Definition:** {s.definition()}"
+			await ctx.send(definition_text)
+	else:
+		await ctx.send("No definitions found.")
+
+@bot.command(name='shutdown', help="this kills the bot")
 async def shutdown(ctx):
 	await ctx.send("Shutting down...")
 	await bot.close()  # Safely closes the bot connection
 
-@bot.command(name='ask')
-async def ask(ctx, *, query: str):
-    try:
-        # build a response object
-        response = openai.ChatCompletion.create(
-			model = "gpt-3.5-turbo",
-			messages = [
-				{"role": "system", "content": "All I know is slavery and toil"},
-    			{"role": "user", "content": query}
-			]
-		)
-        
-		# Extract and send the response
-        answer = response['choices'][0]['message']['content']
-        await ctx.send(answer)
+# Catch invalid commands
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        command_names = [command.name for command in bot.commands]
+        help_text = f"{error} Here are my commands:\n" + "\n".join(command_names)
+        await ctx.send(help_text + "\n" + "type !help to learn more about each one!")
+    else:
+        raise error  # re-raise other errors so you can see them
 
-    except Exception as e:
-        await ctx.send(f"poop, I failed: {e}")
+
 bot.run(token)
