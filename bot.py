@@ -11,6 +11,7 @@ import json
 import nltk
 from nltk.corpus import wordnet
 import random
+import platform
 
 
 
@@ -48,6 +49,14 @@ async def on_ready():
 @bot.command(help="tell's you what you need to know about yourself")
 async def gay(ctx):
 	await ctx.channel.send(ctx.author.mention + " you are " + str(random.randint(0, 100)) + "% gay")
+ 
+@bot.command(help="operating system I am currently running on")
+async def system(ctx):
+    this_os = platform.system()
+    if this_os == "Darwin":
+        this_os = "macOS"
+        
+    await ctx.channel.send(f"I am currently running on {this_os}!")
 
 @bot.command(help="see how big you are!")      
 async def penis(ctx):
@@ -59,14 +68,19 @@ async def penis(ctx):
 	
 @bot.command(help="who's that pokemon?")   
 async def pokemon(ctx):
-    # this actually won't work if run on non desktop local machine 
+    if platform.system() == "Darwin":
+        with open("/Users/sajidamin5/Documents/Python Stuff/ServerToSubreddit/ServerToSubreddit/pokelist.txt") as f:
+            poke_list = f.read().split(",")
+            pokemon = poke_list[random.randint(0, len(poke_list) - 1)]
+            await ctx.channel.send(f"{ctx.author.mention} {pokemon}")
+            return	
       
-	images_dir = '/Users/Sajid/Desktop/img'
-	images = os.listdir(images_dir)
-	image_filename = random.choice(images)
-	image_path = os.path.join(images_dir, image_filename)
- 
-	with open(image_path, 'rb') as f:
+    images_dir = '/Users/Sajid/Desktop/img'
+    images = os.listdir(images_dir)
+    image_filename = random.choice(images)
+    image_path = os.path.join(images_dir, image_filename)
+    
+    with open(image_path, 'rb') as f:
 	    await ctx.channel.send(ctx.author.mention, file=discord.File(f, "poke.png"))
 		
 @bot.command(
@@ -158,8 +172,6 @@ async def word(ctx, word=""):
 			await ctx.send(definition_text)
 	else:
 		await ctx.send("No definitions found.")
-
-
 
 @bot.command(name='shutdown', help="this kills the bot")
 async def shutdown(ctx):
