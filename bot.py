@@ -42,6 +42,29 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # run only the first time
 nltk.download('wordnet')
 
+@bot.command(help="Do not gamble, you will lose")
+async def slot(ctx, seed="default"):
+	reel = [":cherries:", ":cheese:", ":tangerine:", ":banana:", ":seven:", ":watermelon:", ":hearts:"]
+	reelOne = random.choice(reel)
+	reelTwo = random.choice(reel)
+	reelThree = random.choice(reel)
+	msg = ""
+
+	if {reelOne, reelTwo, reelThree} == {":seven:"}:
+		msg = random.choice(["BOOM JACKPOT", "BAAAAAAAAAAANG"])
+	elif len({reelOne, reelTwo, reelThree}) == 1:
+		msg = "not bad"
+	elif seed.lower() == "win":
+		msg = random.choice(["BOOM JACKPOT", "BAAAAAAAAAAANG"])
+		reelOne = reelTwo = reelThree = ":seven:"
+	elif seed.lower() != "win":
+		msg = "terrible seed"
+	else:
+		msg = random.choice(["...", "we're so due", "cmon bitch", "let us in bitch", "bad seed", "please", "BRO", "heart heart heart", "HIT HIT HTI", "retrig man"])
+
+	await ctx.channel.send(reelOne + reelTwo + reelThree + "\n" + msg)
+
+
 @client.event
 async def on_ready():
     print("Bot is connected to Discord")
