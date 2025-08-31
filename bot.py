@@ -12,6 +12,7 @@ import nltk
 from nltk.corpus import wordnet
 import random
 import platform
+import sqlite3
 
 
 
@@ -20,10 +21,7 @@ import requests
 
 # TODO: make global constants that are somehow protected or add to zhsrc file
 token = 'NzcwOTU3MDU2NjE4MTM1NTUz.GhEOVg.Po-iJ21WZ9ZUqt6F3C6GfP7ZnoQV7y2n1Qu53U'
-hfs2sKey = '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'
-model_id = "meta-llama/Llama-3.2-1B"
 
-url = "http://localhost:11434/api/chat"
 
 
 intents = discord.Intents.all() 
@@ -36,7 +34,12 @@ intents.members = True
 intents.voice_states = True
 
 # global structure to store balances
-wallets = {}
+# wallets = {}
+conn = sqlite3.connect("wallets.db")
+tablePointer = conn.cursor()
+tablePointer.execute("CREATE TABLE IF NOT EXISTS tblWallets (userID INTEGER PRIMARY KEY, balance INTEGER)")
+
+
 
 # Create bot instance and set command prefix
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -46,28 +49,80 @@ nltk.download('wordnet')
 
 # private balance func
 def init_user_balance(userID):
-	if userID not in wallets:
-		wallets[userID] = 1000
-	return wallets[userID]
+	tablePointer.execute("SELECT balance FROM tblWallets WHERE userID = ?", (userID,))
+	row = tablePointer.fetchone()
+	if row is None:
+		tablePointer.execute("INSERT INTO tblWallets (userID, balance) VALUES (?, ?)", (userID, 0))
+		conn.commit()
+		return 0
+	return row[0]
+
+@bot.command(help="You've  met with a terrible fate, haven't you?")
+async def m8b(ctx, *, question=""):
+	if question == "":
+		await ctx.send(f"Ask me something")
+		return
+
+	magic_8_ball_responses = [
+    # P	ositive
+    "It is certain.",
+    "It is decidedly so.",
+    "Without a doubt.",
+    "Yes – definitely.",
+    "You may rely on it.",
+    "As I see it, yes.",
+    "Most likely.",
+    "Outlook good.",
+    "Yes.",
+    "Signs point to yes.",
+
+    # Neutral
+    "Reply hazy, try again.",
+    "Ask again later.",
+    "Better not tell you now.",
+    "Cannot predict now.",
+    "Concentrate and ask again.",
+
+    # Negative
+    "Don't count on it.",
+    "My reply is no.",
+    "My sources say no.",
+    "Outlook not so good.",
+    "Very doubtful."
+	]
+	
+	await ctx.send(f"To answer your question \"{question}\": \n{random.choice(magic_8_ball_responses)}")
+
+
+
 
 @bot.command(help="I HAVE NOTHING")
 async def wallet(ctx, amount=0):
 	bal = init_user_balance(ctx.author.id)
 	if amount != 0:
-		wallets[ctx.author.id] += amount
-		bal = init_user_balance(ctx.author.id)
-		await ctx.send(f"{amount} has been {'added to' if amount > 0 else 'removed from'} your wallet")
+		tablePointer.execute("UPDATE tblWallets SET balance = ? WHERE userID = ?", (amount + bal, ctx.author.id))
+		conn.commit()
+		bal = amount + bal
+		await ctx.send(f"{amount} has been {'added to' if amount > 0 else 'removed from'} your wallet {':moneybag:' if amount > 0 else ':pensive:'}")
 
-	await ctx.send(f"{ctx.author.mention}, you have {bal} coins!")
+	positive = [":money_mouth:", ":money_with_wings:", ":dollar:"]
+	negative = [":roll_of_paper:", ":no_entry:", ":stuck_out_tongue_closed_eyes:", ":chart_with_downwards_trend:"]
+	await ctx.send(f"{ctx.author.mention}, you have {bal} coins! {random.choice(positive) if  bal > 0 else random.choice(negative)}")
 
 @bot.command(help="Do not gamble, you will lose")
 async def slot(ctx, amount=0, seed="default"):
 	if amount == 0:
-		await ctx.send(f"{ctx.author.mention}, put some money in to play, broke ass nigga!")
+		await ctx.send(f"{ctx.author.mention} put some money in to play, broke ass jit!")
+		return
+	
+
+	userBal = init_user_balance(ctx.author.id)
+	if userBal <= 0 or amount > userBal:
+		await ctx.send(f"{ctx.author.mention} insufficient funds, get your money up jit")
 		return
 	
 	reel = [":cherries:", ":cheese:", ":tangerine:", ":banana:", ":seven:", ":watermelon:", ":hearts:"]
-	pulls = ["unreal", "unbelievable", "...", "we're so due", "cmon bitch", "let us in bitch", "bad seed", "please", "BRO", "heart heart heart", "HIT HIT HTI", "retrig man",  "just do it", "just get us in", "please bro", "fr", "wtf", "cmooon", "please", "no dude", "just lock in", "rolling", "pls", "next one"]
+	pulls = ["unreal", "shameless", "don't get it twisted", "twisted", "unbelievable", "...", "we're so due", "cmon bitch", "let us in bitch", "bad seed", "please", "BRO", "heart heart heart", "HIT HIT HTI", "retrig man",  "just do it", "just get us in", "please bro", "fr", "wtf", "cmooon", "please", "no dude", "just lock in", "rolling", "pls", "next one"]
 	sevenSevenSeven = ["BOOM JACKPOT", "BAAAAAAAAAAANG"]
 	threeOfAKind = ["not bad", "OKAYY", "nooot bad", "lfg"]
 	reelOne = random.choice(reel)
