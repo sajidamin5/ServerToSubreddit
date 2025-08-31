@@ -115,9 +115,6 @@ async def pokemon(ctx):
 	image_path = os.path.join(images_dir, f"{num}.png")
 	with open(image_path, 'rb') as f:
 		await ctx.channel.send(ctx.author.mention, file=discord.File(f, "poke.png"))
-    
-    # with open(image_path, 'rb') as f:
-	#     await ctx.channel.send(ctx.author.mention, file=discord.File(f, "poke.png"))
 		
 @bot.command(
     name="get_messages",
