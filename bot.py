@@ -35,6 +35,8 @@ intents.message_content = True
 intents.members = True
 intents.voice_states = True
 
+# global structure to store balances
+wallets = {}
 
 # Create bot instance and set command prefix
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -42,37 +44,66 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # run only the first time
 nltk.download('wordnet')
 
+# private balance func
+def init_user_balance(userID):
+	if userID not in wallets:
+		wallets[userID] = 1000
+	return wallets[userID]
+
+@bot.command(help="I HAVE NOTHING")
+async def wallet(ctx, amount=0):
+	bal = init_user_balance(ctx.author.id)
+	if amount != 0:
+		wallets[ctx.author.id] += amount
+		bal = init_user_balance(ctx.author.id)
+		await ctx.send(f"{amount} has been {'added to' if amount > 0 else 'removed from'} your wallet")
+
+	await ctx.send(f"{ctx.author.mention}, you have {bal} coins!")
+
 @bot.command(help="Do not gamble, you will lose")
-async def slot(ctx, seed="default"):
+async def slot(ctx, amount=0, seed="default"):
+	if amount == 0:
+		await ctx.send(f"{ctx.author.mention}, put some money in to play, broke ass nigga!")
+		return
+	
 	reel = [":cherries:", ":cheese:", ":tangerine:", ":banana:", ":seven:", ":watermelon:", ":hearts:"]
+	pulls = ["unreal", "unbelievable", "...", "we're so due", "cmon bitch", "let us in bitch", "bad seed", "please", "BRO", "heart heart heart", "HIT HIT HTI", "retrig man",  "just do it", "just get us in", "please bro", "fr", "wtf", "cmooon", "please", "no dude", "just lock in", "rolling", "pls", "next one"]
+	sevenSevenSeven = ["BOOM JACKPOT", "BAAAAAAAAAAANG"]
+	threeOfAKind = ["not bad", "OKAYY", "nooot bad", "lfg"]
 	reelOne = random.choice(reel)
 	reelTwo = random.choice(reel)
 	reelThree = random.choice(reel)
 	msg = ""
 
+	await ctx.channel.send(f"Rolling for {amount}!")
+
 	if {reelOne, reelTwo, reelThree} == {":seven:"}:
-		msg = random.choice(["BOOM JACKPOT", "BAAAAAAAAAAANG"])
+		msg = random.choice(sevenSevenSeven)
+		amount = amount * 100
 	elif len({reelOne, reelTwo, reelThree}) == 1:
-		msg = msg = random.choice(["not bad", "OKAYY", "nooot bad", "lfg"]) 
+		msg = msg = random.choice(threeOfAKind)
+		amount = amount * 10 
 	elif seed.lower() == "win":
-		msg = random.choice(["BOOM JACKPOT", "BAAAAAAAAAAANG"])
+		msg = random.choice(sevenSevenSeven)
 		reelOne = reelTwo = reelThree = ":seven:"
+		amount = amount * 100
 	elif seed.lower() != "win" and seed != "default":
 		msg = "terrible seed"
+		amount = amount * -1
 	else:
-		msg = random.choice(["unreal", "unbelievable", "...", "we're so due", "cmon bitch", "let us in bitch", "bad seed", "please", "BRO", "heart heart heart", "HIT HIT HTI", "retrig man",  "just do it", "just get us in", "please bro", "fr", "wtf", "cmooon", "please", "no dude", "just lock in", "rolling", "pls", "next one"])
+		msg = random.choice(pulls)
+		amount = amount * -1
+
 
 	# SLOT ASCII
 	divider = "+" + '-'*19 +" + " + "\n"
 	margin = int((21 - len(msg)) / 2)
-	await ctx.channel.send(divider + 
-							"|   SLOT MACHINE    |" + "\n" + 
-							divider +
-							"|       " + reelOne + "    " + reelTwo + "    "  + reelThree + "    |" + "\n" +
-							divider +
-							 "|" + " "*margin + msg + " "*margin   + "     <-------------" + "\n"  +
+	await ctx.channel.send(divider + "|   SLOT MACHINE    |" + "\n" + 
+							divider + "|       " + reelOne + "    " + reelTwo + "    "  + reelThree + "    |" + "\n" +
+							divider + "|" + " "*margin + msg + " "*margin   + "     <-------------" + "\n"  +
 							divider)	
-
+	# update wallet
+	await wallet(ctx, amount)
 
 @client.event
 async def on_ready():
