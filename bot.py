@@ -53,16 +53,26 @@ async def slot(ctx, seed="default"):
 	if {reelOne, reelTwo, reelThree} == {":seven:"}:
 		msg = random.choice(["BOOM JACKPOT", "BAAAAAAAAAAANG"])
 	elif len({reelOne, reelTwo, reelThree}) == 1:
-		msg = "not bad"
+		msg = msg = random.choice(["not bad", "OKAYY", "nooot bad", "lfg"]) 
 	elif seed.lower() == "win":
 		msg = random.choice(["BOOM JACKPOT", "BAAAAAAAAAAANG"])
 		reelOne = reelTwo = reelThree = ":seven:"
-	elif seed.lower() != "win":
+	elif seed.lower() != "win" and seed != "default":
 		msg = "terrible seed"
 	else:
-		msg = random.choice(["...", "we're so due", "cmon bitch", "let us in bitch", "bad seed", "please", "BRO", "heart heart heart", "HIT HIT HTI", "retrig man"])
+		msg = random.choice(["unreal", "unbelievable", "...", "we're so due", "cmon bitch", "let us in bitch", "bad seed", "please", "BRO", "heart heart heart", "HIT HIT HTI", "retrig man",  "just do it", "just get us in", "please bro", "fr", "wtf", "cmooon", "please", "no dude", "just lock in", "rolling", "pls", "next one"])
 
-	await ctx.channel.send(reelOne + reelTwo + reelThree + "\n" + msg)
+	# SLOT ASCII
+	divider = "+" + '-'*19 +" + " + "\n"
+	margin = int((21 - len(msg)) / 2)
+	await ctx.channel.send(len(["unreal", "unbelievable", "...", "we're so due", "cmon bitch", "let us in bitch", "bad seed", "please", "BRO", "heart heart heart", "HIT HIT HTI", "retrig man",  "just do it", "just get us in", "please bro", "fr", "wtf", "cmooon", "please", "no dude", "just lock in", "rolling", "pls", "next one"]))
+	await ctx.channel.send(divider + 
+							"|   SLOT MACHINE    |" + "\n" + 
+							divider +
+							"|       " + reelOne + "    " + reelTwo + "    "  + reelThree + "    |" + "\n" +
+							divider +
+							 "|" + " "*margin + msg + " "*margin   + "     <-------------" + "\n"  +
+							divider)	
 
 
 @client.event
