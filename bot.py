@@ -65,7 +65,6 @@ async def slot(ctx, seed="default"):
 	# SLOT ASCII
 	divider = "+" + '-'*19 +" + " + "\n"
 	margin = int((21 - len(msg)) / 2)
-	await ctx.channel.send(len(["unreal", "unbelievable", "...", "we're so due", "cmon bitch", "let us in bitch", "bad seed", "please", "BRO", "heart heart heart", "HIT HIT HTI", "retrig man",  "just do it", "just get us in", "please bro", "fr", "wtf", "cmooon", "please", "no dude", "just lock in", "rolling", "pls", "next one"]))
 	await ctx.channel.send(divider + 
 							"|   SLOT MACHINE    |" + "\n" + 
 							divider +
@@ -101,20 +100,24 @@ async def penis(ctx):
 	
 @bot.command(help="who's that pokemon?")   
 async def pokemon(ctx):
-    if platform.system() == "Darwin":
-        with open("/Users/sajidamin5/Documents/Python Stuff/ServerToSubreddit/ServerToSubreddit/pokelist.txt") as f:
-            poke_list = f.read().split(",")
-            pokemon = poke_list[random.randint(0, len(poke_list) - 1)]
-            await ctx.channel.send(f"{ctx.author.mention} {pokemon}")
-            return	
-      
-    images_dir = '/Users/Sajid/Desktop/img'
-    images = os.listdir(images_dir)
-    image_filename = random.choice(images)
-    image_path = os.path.join(images_dir, image_filename)
+	
+	if platform.system() == "Darwin":
+		with open("/Users/sajidamin5/Documents/Python Stuff/ServerToSubreddit/ServerToSubreddit/pokelist.txt") as f:
+			poke_list = f.read().split(",")
+			pokemon = poke_list[random.randint(0, len(poke_list) - 1)]
+			await ctx.channel.send(f"{ctx.author.mention} {pokemon}")
+			return
+		
+	# C:\Users\Sajid\Desktop\sprites\pokemon
+	images_dir = '/Users/Sajid/Desktop/sprites/pokemon'
+	images = os.listdir(images_dir)
+	num = random.randint(1, 649)
+	image_path = os.path.join(images_dir, f"{num}.png")
+	with open(image_path, 'rb') as f:
+		await ctx.channel.send(ctx.author.mention, file=discord.File(f, "poke.png"))
     
-    with open(image_path, 'rb') as f:
-	    await ctx.channel.send(ctx.author.mention, file=discord.File(f, "poke.png"))
+    # with open(image_path, 'rb') as f:
+	#     await ctx.channel.send(ctx.author.mention, file=discord.File(f, "poke.png"))
 		
 @bot.command(
     name="get_messages",
