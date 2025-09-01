@@ -40,8 +40,11 @@ tablePointer = conn.cursor()
 tablePointer.execute("CREATE TABLE IF NOT EXISTS tblWallets (userID INTEGER PRIMARY KEY, balance INTEGER)")
 
 pokedex = None
+reverse_pokedex = None
+images_dir = '/Users/Sajid/Desktop/sprites/pokemon'
 with open("pokedex.json", "r", encoding="utf-8") as f:
 	pokedex = json.load(f)
+	reverse_pokedex = {v.lower(): k for k, v in pokedex.items()}
 
 
 
@@ -112,10 +115,15 @@ async def wallet(ctx, amount=0):
 		bal = amount + bal
 		await ctx.send(f"{abs(amount)} has been {'added to' if amount > 0 else 'deducted from'} your account {random.choice(positive) if amount > 0 else random.choice(negative)}")
 
-	await ctx.send(f"{ctx.author.mention}, you have {bal} coins! {random.choice(positive) if  bal > 0  else random.choice(negative)}")
+	await ctx.send(f"{ctx.author.mention}, you have {bal} $ag coins! {random.choice(positive) if  bal > 0  else random.choice(negative)}")
 
 @bot.command(help="Do not gamble, you will lose")
-async def slot(ctx, amount=0, seed="default"):
+async def slot(ctx, amount: str="0", seed="default"):
+	if not amount.isnumeric():
+		await ctx.send(f"{ctx.author.mention} go home jit, you're drunk.")
+		return
+
+	amount = int(amount)
 	if amount == 0:
 		await ctx.send(f"{ctx.author.mention} put some money in to play, broke ass jit!")
 		return
@@ -127,8 +135,8 @@ async def slot(ctx, amount=0, seed="default"):
 		return
 	
 	reel = [":cherries:", ":cheese:", ":tangerine:", ":banana:", ":seven:", ":watermelon:", ":hearts:"]
-	pulls = ["unreal", "shameless", "don't get it twisted", "twisted", "unbelievable", "...", "we're so due", "cmon bitch", "let us in bitch", "bad seed", "please", "BRO", "heart heart heart", "HIT HIT HTI", "retrig man",  "just do it", "just get us in", "please bro", "fr", "wtf", "cmooon", "please", "no dude", "just lock in", "rolling", "pls", "next one"]
-	sevenSevenSeven = ["BOOM JACKPOT", "BAAAAAAAAAAANG"]
+	pulls = ["anita max wynn", "max win please", "unreal", "shameless", "don't get it twisted", "twisted", "unbelievable", "...", "we're so due", "cmon bitch", "let us in bitch", "bad seed", "please", "BRO", "heart heart heart", "HIT HIT HTI", "retrig man",  "just do it", "just get us in", "please bro", "fr", "wtf", "cmooon", "please", "no dude", "just lock in", "rolling", "pls", "next one"]
+	sevenSevenSeven = ["BOOM JACKPOT", "BAAAAAAAAAAANG", "MAX WINNNNN"]
 	threeOfAKind = ["not bad", "OKAYY", "nooot bad", "lfg"]
 	reelOne = random.choice(reel)
 	reelTwo = random.choice(reel)
@@ -190,7 +198,19 @@ async def penis(ctx):
 	await ctx.channel.send(ctx.author.mention + " your cock is  8" + shaft + "D long")
 	
 @bot.command(help="who's that pokemon?")   
-async def pokemon(ctx):
+async def pokemon(ctx, pokeName="none"):
+
+	if pokeName != "none":
+		pokeNum = reverse_pokedex.get(pokeName.lower())
+		if pokeNum == None:
+			await ctx.channel.send(f"{ctx.author.mention} Are you sure you spelled {pokeName} correctly?")
+			return
+		
+		with open(os.path.join(images_dir, f"{pokeNum}.png"), 'rb') as f:
+			encounter = [":scream_cat:", ":astonished:", ":exploding_head:"]
+			await ctx.channel.send(ctx.author.mention, file=discord.File(f, "poke.png"))
+			await ctx.channel.send(f"A wild {pokedex[pokeNum]} appeared! {random.choice(encounter)}")
+		return
 	
 	if platform.system() == "Darwin":
 		with open("/Users/sajidamin5/Documents/Python Stuff/ServerToSubreddit/ServerToSubreddit/pokelist.txt") as f:
@@ -199,12 +219,11 @@ async def pokemon(ctx):
 			await ctx.channel.send(f"{ctx.author.mention} {pokemon}")
 			return
 		
-	# C:\Users\Sajid\Desktop\sprites\pokemon
-	images_dir = '/Users/Sajid/Desktop/sprites/pokemon'
-	images = os.listdir(images_dir)
+	# Getting paths and names
 	num = random.randint(1, 649)
 	image_path = os.path.join(images_dir, f"{num}.png")
 	pokeName = pokedex[str(num)]
+
 	with open(image_path, 'rb') as f:
 		await ctx.channel.send(ctx.author.mention, file=discord.File(f, "poke.png"))
 		await ctx.channel.send("Who's that Pokémon?")
@@ -213,8 +232,9 @@ async def pokemon(ctx):
 	
 	# private function to pass into bot.wait_for()
 	def check(message: discord.message):
-		print("Heard:", message.content, "from", message.author)
-		print(f"guess: {message.content} pokemon: {pokeName}")
+		# DEBUG
+		# print("Heard:", message.content, "from", message.author)
+		# print(f"guess: {message.content} pokemon: {pokeName}")
 		return message.author == ctx.author and message.channel == ctx.channel
 
 	try:
