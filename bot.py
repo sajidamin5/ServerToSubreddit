@@ -103,11 +103,11 @@ async def wallet(ctx, amount=0):
 		tablePointer.execute("UPDATE tblWallets SET balance = ? WHERE userID = ?", (amount + bal, ctx.author.id))
 		conn.commit()
 		bal = amount + bal
-		await ctx.send(f"{amount} has been {'added to' if amount > 0 else 'removed from'} your wallet {':moneybag:' if amount > 0 else ':pensive:'}")
+		await ctx.send(f"{abs(amount)} has been {'added to' if amount > 0 else 'deducted from'} your account {':moneybag:' if amount > 0 else ':pensive:'}")
 
 	positive = [":money_mouth:", ":money_with_wings:", ":dollar:"]
 	negative = [":roll_of_paper:", ":no_entry:", ":stuck_out_tongue_closed_eyes:", ":chart_with_downwards_trend:"]
-	await ctx.send(f"{ctx.author.mention}, you have {bal} coins! {random.choice(positive) if  bal > 0 else random.choice(negative)}")
+	await ctx.send(f"{ctx.author.mention}, you have {bal} coins! {random.choice(positive) if  bal > 0  else random.choice(negative)}")
 
 @bot.command(help="Do not gamble, you will lose")
 async def slot(ctx, amount=0, seed="default"):
