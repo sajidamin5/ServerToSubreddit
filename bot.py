@@ -223,8 +223,10 @@ async def pokemon(ctx):
 		incorrect = ["Nope", "Wrong", "Nah", "Incorrect"]
 		if guess.content.strip().lower() == pokeName.lower():
 			await ctx.channel.send(f":white_check_mark: {random.choice(correct)}! It's **{pokeName}**")
+			await wallet(ctx, 100)
 		else:
 			await ctx.channel.send(f":x: {random.choice(incorrect)}. It's actually {pokeName}")
+			await wallet(ctx, -10)
 	except asyncio.TimeoutError:
 		await ctx.channel.send(f":alarm_clock: Too slow! The Pokémon was **{pokeName}**.")
 
