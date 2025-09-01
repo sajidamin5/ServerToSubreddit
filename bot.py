@@ -39,6 +39,10 @@ conn = sqlite3.connect("wallets.db")
 tablePointer = conn.cursor()
 tablePointer.execute("CREATE TABLE IF NOT EXISTS tblWallets (userID INTEGER PRIMARY KEY, balance INTEGER)")
 
+pokedex = None
+with open("pokedex.json", "r", encoding="utf-8") as f:
+	pokedex = json.load(f)
+
 
 
 # Create bot instance and set command prefix
@@ -99,14 +103,15 @@ async def m8b(ctx, *, question=""):
 @bot.command(help="I HAVE NOTHING")
 async def wallet(ctx, amount=0):
 	bal = init_user_balance(ctx.author.id)
+	positive = [":money_mouth:", ":money_with_wings:", ":dollar:", ":moneybag:"]
+	negative = [":roll_of_paper:", ":no_entry:", ":stuck_out_tongue_closed_eyes:", ":chart_with_downwards_trend:", ":pensive:"]
+	
 	if amount != 0:
 		tablePointer.execute("UPDATE tblWallets SET balance = ? WHERE userID = ?", (amount + bal, ctx.author.id))
 		conn.commit()
 		bal = amount + bal
-		await ctx.send(f"{abs(amount)} has been {'added to' if amount > 0 else 'deducted from'} your account {':moneybag:' if amount > 0 else ':pensive:'}")
+		await ctx.send(f"{abs(amount)} has been {'added to' if amount > 0 else 'deducted from'} your account {random.choice(positive) if amount > 0 else random.choice(negative)}")
 
-	positive = [":money_mouth:", ":money_with_wings:", ":dollar:"]
-	negative = [":roll_of_paper:", ":no_entry:", ":stuck_out_tongue_closed_eyes:", ":chart_with_downwards_trend:"]
 	await ctx.send(f"{ctx.author.mention}, you have {bal} coins! {random.choice(positive) if  bal > 0  else random.choice(negative)}")
 
 @bot.command(help="Do not gamble, you will lose")
@@ -199,8 +204,30 @@ async def pokemon(ctx):
 	images = os.listdir(images_dir)
 	num = random.randint(1, 649)
 	image_path = os.path.join(images_dir, f"{num}.png")
+	pokeName = pokedex[str(num)]
 	with open(image_path, 'rb') as f:
 		await ctx.channel.send(ctx.author.mention, file=discord.File(f, "poke.png"))
+		await ctx.channel.send("Who's that Pokémon?")
+		# await ctx.channel.send(f"It's {pokeName}!")
+		# print(num) DEBUG
+	
+	# private function to pass into bot.wait_for()
+	def check(message: discord.message):
+		print("Heard:", message.content, "from", message.author)
+		print(f"guess: {message.content} pokemon: {pokeName}")
+		return message.author == ctx.author and message.channel == ctx.channel
+
+	try:
+		guess = await bot.wait_for("message", check=check, timeout=10.0)
+		correct = ["Baaang", "Correct", "Nice", "Yes"]
+		incorrect = ["Nope", "Wrong", "Nah", "Incorrect"]
+		if guess.content.strip().lower() == pokeName.lower():
+			await ctx.channel.send(f":white_check_mark: {random.choice(correct)}! It's **{pokeName}**")
+		else:
+			await ctx.channel.send(f":x: {random.choice(incorrect)}. It's actually {pokeName}")
+	except asyncio.TimeoutError:
+		await ctx.channel.send(f":alarm_clock: Too slow! The Pokémon was **{pokeName}**.")
+
 		
 @bot.command(
     name="get_messages",
