@@ -13,6 +13,7 @@ from nltk.corpus import wordnet
 import random
 import platform
 import sqlite3
+from collections import deque
 
 
 
@@ -63,6 +64,9 @@ class GameState:
 		
 		self.cards = {"Duke":3, "Assassin":3, "Contessa":3, "Ambassador":3, "Captain":3}
 		
+		# turn ordering via deque
+		self.turn_order = deque(players)
+
 		# expand dictionary into a list of cards
 		self.deck = []
 		for card, count in self.cards.items():
@@ -78,6 +82,13 @@ class GameState:
 			pData["hand"].append(self.deck.pop())
 
 		print(self.deck)
+
+	def next_turn(self):
+		self.turn_order.rotate(-1)  # move left
+		return self.turn_order[0]
+
+	def current_player(self):
+		return self.turn_order[0]
 
 	def get_hands(self):
 		return {pid: pData["hand"] for pid, pData in self.players.items()}
@@ -127,8 +138,7 @@ async def coup(ctx, *players: discord.Member):
 			return
 
 	gameState = GameState(players)
-	
-	
+
 	# notify player of handstate
 	for player_id, hands in  gameState.get_hands().items():
 		try:
@@ -136,6 +146,18 @@ async def coup(ctx, *players: discord.Member):
 			await player.send(f"{', '.join(hands)} is your hand, good luck!" )
 		except discord.Forbidden:
 			await ctx.send(f"I couldn't DM {player.mention}. They might have DMs disabled.")
+
+
+@bot.command(help="End current game of coup")
+async def endgame(ctx):
+	global gameState
+
+	if gameState is None:
+		await ctx.send("No game is currently running.")
+		return
+
+	gameState = None
+	await ctx.send("Game ended.")
 
 # private balance func
 def init_user_balance(userID):
