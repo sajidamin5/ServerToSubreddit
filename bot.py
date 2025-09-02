@@ -23,9 +23,15 @@ import requests
 token = 'NzcwOTU3MDU2NjE4MTM1NTUz.GhEOVg.Po-iJ21WZ9ZUqt6F3C6GfP7ZnoQV7y2n1Qu53U'
 
 
+# run only the first time
+nltk.download('wordnet')
+
 
 intents = discord.Intents.all() 
 client = discord.Client(intents=intents)
+
+# Create bot instance and set command prefix
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Set up the intents for your bot
 intents = discord.Intents.default()
@@ -39,6 +45,7 @@ conn = sqlite3.connect("wallets.db")
 tablePointer = conn.cursor()
 tablePointer.execute("CREATE TABLE IF NOT EXISTS tblWallets (userID INTEGER PRIMARY KEY, balance INTEGER)")
 
+# pokemon globals stuff
 pokedex = None
 reverse_pokedex = None
 images_dir = '/Users/Sajid/Desktop/sprites/pokemon'
@@ -46,13 +53,89 @@ with open("pokedex.json", "r", encoding="utf-8") as f:
 	pokedex = json.load(f)
 	reverse_pokedex = {v.lower(): k for k, v in pokedex.items()}
 
+# coup globals stuff
+gameState = None
 
+class GameState:
+	def __init__(self, players):
+		# coins/hands of each player
+		self.players = {player.id: {"coins": 2, "hand" : []} for player in players}
+		
+		self.cards = {"Duke":3, "Assassin":3, "Contessa":3, "Ambassador":3, "Captain":3}
+		
+		# expand dictionary into a list of cards
+		self.deck = []
+		for card, count in self.cards.items():
+			self.deck.extend([card] * count)
 
-# Create bot instance and set command prefix
-bot = commands.Bot(command_prefix="!", intents=intents)
+		# shuffle deck once
+		random.shuffle(self.deck)
 
-# run only the first time
-nltk.download('wordnet')
+		# SET HANDS
+		for player, pData in self.players.items():
+			# two cards per player
+			pData["hand"].append(self.deck.pop())
+			pData["hand"].append(self.deck.pop())
+
+		print(self.deck)
+
+	def get_hands(self):
+		return {pid: pData["hand"] for pid, pData in self.players.items()}
+
+	def get_coins(self):
+		return {pid: pdata["coins"] for pid, pdata in self.players.items()}
+	
+	def add_coins(self, player_id, amount):
+		if player_id in self.players:
+			self.players[player_id]["coins"] += amount
+	
+	def remove_coins(self, player_id, amount):
+		if player_id in self.players:
+			self.players[player_id]["coins"] = max(0, self.players[player_id]["coins"] - amount)
+	
+	# when a player needs to replace card from hand with one in deck
+	def draw_card(self, player_id, card):
+		player = self.players[player_id]
+		self.deck.add(player["hand"].remove(card))
+		random.shuffle(self.deck)
+		player["hand"].add(self.deck.pop())
+		return
+	
+	def __str__(self):
+        # readable string when you do str(game_state) or print(game_state)
+		lines = []
+		for pid, pdata in self.players.items():
+			lines.append(f"Player {pid}: {pdata['coins']} coins, hand={pdata['hand']}")
+		return "\n".join(lines)
+	
+@bot.command(help="Play a game of coup")
+async def coup(ctx, *players: discord.Member):
+	global gameState
+
+	if gameState is not None:
+		await ctx.send("A game is already running! End it first with !endgame.")
+		return
+	
+	# initialize players
+	if not players or len(players) == 1:
+		await ctx.send("You need atleast two players to play coup!")
+		return
+	
+	for player in players:
+		if not isinstance(player, discord.Member):
+			await ctx.send("please only supply the @s of members in the server")
+			return
+
+	gameState = GameState(players)
+	
+	
+	# notify player of handstate
+	for player_id, hands in  gameState.get_hands().items():
+		try:
+			player = await bot.fetch_user(player_id)  # returns a discord.User
+			await player.send(f"{', '.join(hands)} is your hand, good luck!" )
+		except discord.Forbidden:
+			await ctx.send(f"I couldn't DM {player.mention}. They might have DMs disabled.")
 
 # private balance func
 def init_user_balance(userID):
@@ -99,8 +182,6 @@ async def m8b(ctx, *, question=""):
 	]
 	
 	await ctx.send(f"To answer your question \"{question}\": \n{random.choice(magic_8_ball_responses)}")
-
-
 
 
 @bot.command(help="I HAVE NOTHING")
