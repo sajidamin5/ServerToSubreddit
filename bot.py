@@ -83,6 +83,9 @@ class GameState:
 
 		print(self.deck)
 
+	def get_roles(self):
+		return list(self.cards.keys())
+
 	def next_turn(self):
 		self.turn_order.rotate(-1)  # move left
 		return self.turn_order[0]
@@ -121,23 +124,21 @@ class GameState:
 	
 @bot.command(help="Play a game of coup")
 async def coup(ctx, *players: discord.Member):
-	global gameState
+	global gameState 
 
 	if gameState is not None:
-		await ctx.send("A game is already running! End it first with !endgame.")
-		return
+		return await ctx.send("A coup is already underway! End it first with !endgame.")
 	
 	# initialize players
 	if not players or len(players) == 1:
-		await ctx.send("You need atleast two players to play coup!")
-		return
-	
+		return await ctx.send("You need atleast two players to play coup!")
+
 	for player in players:
 		if not isinstance(player, discord.Member):
-			await ctx.send("please only supply the @s of members in the server")
-			return
+			return await ctx.send("please only supply the @s of members in the server")
 
 	gameState = GameState(players)
+	await ctx.send("A coup has begun to brew! Your roles have been sent to you, good luck rebels.")
 
 	# notify player of handstate
 	for player_id, hands in  gameState.get_hands().items():
@@ -147,14 +148,58 @@ async def coup(ctx, *players: discord.Member):
 		except discord.Forbidden:
 			await ctx.send(f"I couldn't DM {player.mention}. They might have DMs disabled.")
 
+@bot.command(help="COUP COMMAND ONLY: Performs an action given a role")
+async def action(ctx, role="", player:discord.Member = None, ):
+	# ERROR HANDLING
+	if gameState is None: return await ctx.send(f"No game currently in progress")
+	if ctx.author is not gameState.current_player(): return await ctx.send(f"{ctx.author.mention}, It's not your turn!")
+	if role=="" or role.lower() not in [w.lower() for w in gameState.get_roles()]: 
+		return await ctx.send(f"{ctx.author.mention}, Specify a role who's action you'll perform!")
+	
+
+	await ctx.send(f"{ctx.author.display_name} is performing {role}!\nthe rest of the players have 7 seconds to perform a counteraction!")
+	gameState.next_turn()
+
+	# private function to pass into bot.wait_for()
+	def check(message: discord.message):
+		return message.channel == ctx.channel
+	
+	try:
+		guess = await bot.wait_for("message", check=check, timeout=7.0)
+		match guess:
+			case "duke":
+				await ctx.send(f"foreign aid blocked!")
+			case "contessa":
+				await ctx.send(f"assassin blocked!")
+			case "ambassador", "captain":
+				await ctx.send(f"steal blocked!")
+			case _:
+				await ctx.send(f"invalid counteraction! did you mispell?")
+
+	except asyncio.TimeoutError:
+		await ctx.channel.send(f":alarm_clock: Counter action period closed! {ctx.author.display_name}'s action was performed")
+		match role:
+			case "duke":
+				await ctx.send(f"{ctx.author.mention} recieved foreign aid!")
+			case "contessa":
+				await ctx.send(f"??!")
+			case "assassin":
+				await ctx.send(f"{ctx.author.mention} has killed {player}!")
+			case "ambassador":
+				await ctx.send(f"redraw!")
+			case "captain":
+				await ctx.send(f"steal!")
+
+
+
+
 
 @bot.command(help="End current game of coup")
 async def endgame(ctx):
 	global gameState
 
 	if gameState is None:
-		await ctx.send("No game is currently running.")
-		return
+		return await ctx.send("No game is currently running.")
 
 	gameState = None
 	await ctx.send("Game ended.")
@@ -365,8 +410,6 @@ Arguments:
   author: (Optional) Filter by author username
 """
 )
-
-
 async def get_messages(ctx, channel_id, start_date, end_date, author="default"):
     
 # Convert the date strings to datetime objects
