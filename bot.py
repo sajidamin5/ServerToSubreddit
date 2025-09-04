@@ -166,7 +166,7 @@ async def action(ctx, role="", player:discord.Member = None, ):
 	
 	try:
 		guess = await bot.wait_for("message", check=check, timeout=7.0)
-		match guess:
+		match guess.content.strip().lower():
 			case "duke":
 				await ctx.send(f"foreign aid blocked!")
 			case "contessa":
