@@ -59,13 +59,21 @@ gameState = None
 
 class GameState:
 	def __init__(self, players):
+
+		ids = [p.id for p in players]
+		if len(ids) != len(set(ids)):
+			raise ValueError("Duplicate players detected!")
+		
 		# coins/hands of each player
 		self.players = {player.id: {"coins": 2, "hand" : []} for player in players}
-		
+
 		self.cards = {"Duke":3, "Assassin":3, "Contessa":3, "Ambassador":3, "Captain":3}
 		
 		# turn ordering via deque
 		self.turn_order = deque(players)
+
+		# list of player.ids to store players that can be accused
+		self.accusable = ""
 
 		# expand dictionary into a list of cards
 		self.deck = []
@@ -82,6 +90,12 @@ class GameState:
 			pData["hand"].append(self.deck.pop())
 
 		print(self.deck)
+
+	def set_accusable(self, player_id=""):
+		self.accusable = player_id
+	
+	def get_accusable(self):
+		return self.accusable
 
 	def get_roles(self):
 		return list(self.cards.keys())
@@ -155,34 +169,45 @@ async def action(ctx, role="", player:discord.Member = None, ):
 	if ctx.author is not gameState.current_player(): return await ctx.send(f"{ctx.author.mention}, It's not your turn!")
 	if role=="" or role.lower() not in [w.lower() for w in gameState.get_roles()]: 
 		return await ctx.send(f"{ctx.author.mention}, Specify a role who's action you'll perform!")
-	
 
-	await ctx.send(f"{ctx.author.display_name} is performing {role}!\nthe rest of the players have 7 seconds to perform a counteraction!")
-	gameState.next_turn()
+	gameState.set_accusable("")
+	print(gameState.get_accusable())
+
+	# TODO: case for when role -> COUP because this cannot be countered
+	# TODO: increase counteraction window timer but incorporate a vote skip function if all players (excluding actioneer vote yes)
+	await ctx.send(f"{ctx.author.display_name} is performing {role}! \n"
+					"the rest of the players have 7 seconds to perform a counteraction - type **counter** in chat")
+	
+	gameState.set_accusable(ctx.author.id)
+	print(gameState.get_accusable())
 
 	# private function to pass into bot.wait_for()
 	def check(message: discord.message):
 		return message.channel == ctx.channel
 	
 	try:
-		guess = await bot.wait_for("message", check=check, timeout=7.0)
-		match guess.content.strip().lower():
-			case "duke":
-				await ctx.send(f"foreign aid blocked!")
-			case "contessa":
-				await ctx.send(f"assassin blocked!")
-			case "ambassador", "captain":
-				await ctx.send(f"steal blocked!")
-			case _:
-				await ctx.send(f"invalid counteraction! did you mispell?")
+		guess = await bot.wait_for("message", check=check, timeout=14.0)
+		if guess.content.strip().lower() == "counter":
+			gameState.set_accusable(guess.author.id)
+			print(gameState.get_accusable())
+			match role:
+				case "duke":
+					await ctx.send(f"foreign aid blocked by {guess.author.display_name}!")
+				case "contessa":
+					await ctx.send(f"assassin blocked by {guess.author.display_name}!")
+				case "ambassador", "captain":
+					await ctx.send(f"steal blocked by {guess.author.display_name}!")
+		else:
+			await ctx.send(f"are you trying to counter? Maybe you mispelled: **counter**")
 
 	except asyncio.TimeoutError:
+		
 		await ctx.channel.send(f":alarm_clock: Counter action period closed! {ctx.author.display_name}'s action was performed")
 		match role:
 			case "duke":
 				await ctx.send(f"{ctx.author.mention} recieved foreign aid!")
 			case "contessa":
-				await ctx.send(f"??!")
+				await ctx.send(f"nothing happpened...")
 			case "assassin":
 				await ctx.send(f"{ctx.author.mention} has killed {player}!")
 			case "ambassador":
@@ -190,7 +215,14 @@ async def action(ctx, role="", player:discord.Member = None, ):
 			case "captain":
 				await ctx.send(f"steal!")
 
-
+@bot.command(help="COUP COMMAND ONLY: Challenge a player of a given role")
+async def challenge(ctx, player:discord.Member, role):
+	# ERROR HANDLING
+	if gameState is None: return await ctx.send(f"No game currently in progress")
+	if player
+	if role=="" or role.lower() not in [w.lower() for w in gameState.get_roles()]: 
+		return await ctx.send(f"{ctx.author.mention}, Specify a role who's action you'll perform!")
+	return 
 
 
 
