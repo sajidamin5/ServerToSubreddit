@@ -89,8 +89,6 @@ class GameState:
 			pData["hand"].append(self.deck.pop())
 			pData["hand"].append(self.deck.pop())
 
-		print(self.deck)
-
 	def set_accusable(self, player_id=""):
 		self.accusable = player_id
 	
@@ -100,15 +98,15 @@ class GameState:
 	def get_roles(self):
 		return list(self.cards.keys())
 
+	def get_players(self):
+		return list(self.players.keys())
+
 	def next_turn(self):
 		self.turn_order.rotate(-1)  # move left
 		return self.turn_order[0]
 
 	def current_player(self):
 		return self.turn_order[0]
-
-	def get_hands(self):
-		return {pid: pData["hand"] for pid, pData in self.players.items()}
 
 	def get_coins(self):
 		return {pid: pdata["coins"] for pid, pdata in self.players.items()}
@@ -120,7 +118,19 @@ class GameState:
 	def remove_coins(self, player_id, amount):
 		if player_id in self.players:
 			self.players[player_id]["coins"] = max(0, self.players[player_id]["coins"] - amount)
-	
+
+	def remove_card(self, player_id, idx):
+		if player_id in self.players:
+			self.player[player_id]["hand"] = self.player[player_id]["hand"].remove(idx)
+
+	def get_hand(self, player_id):
+		if player_id in self.players:
+			return self.players[player_id]["hand"]
+		
+	def get_hands(self):
+		return {pid: pData["hand"] for pid, pData in self.players.items()}
+
+
 	# when a player needs to replace card from hand with one in deck
 	def draw_card(self, player_id, card):
 		player = self.players[player_id]
@@ -155,10 +165,13 @@ async def coup(ctx, *players: discord.Member):
 	await ctx.send("A coup has begun to brew! Your roles have been sent to you, good luck rebels.")
 
 	# notify player of handstate
-	for player_id, hands in  gameState.get_hands().items():
+	for player_id, hand in  gameState.get_hands().items():
 		try:
 			player = await bot.fetch_user(player_id)  # returns a discord.User
-			await player.send(f"{', '.join(hands)} is your hand, good luck!" )
+			await player.send(f"Your hand is the following: \n"
+					 			f"Card 1: {hand[0]} \n"
+								f"Card 2: {hand[1]} \n"
+					 			"Good luck!" )
 		except discord.Forbidden:
 			await ctx.send(f"I couldn't DM {player.mention}. They might have DMs disabled.")
 
@@ -176,17 +189,26 @@ async def action(ctx, role="", player:discord.Member = None, ):
 	# TODO: case for when role -> COUP because this cannot be countered
 	# TODO: increase counteraction window timer but incorporate a vote skip function if all players (excluding actioneer vote yes)
 	await ctx.send(f"{ctx.author.display_name} is performing {role}! \n"
-					"the rest of the players have 7 seconds to perform a counteraction - type **counter** in chat")
+					"the rest of the players have 14 seconds to perform a counteraction - type **counter** in chat \n"
+					"all players can type **skip** to move on")
 	
 	gameState.set_accusable(ctx.author.id)
-	print(gameState.get_accusable())
+	print(f"accusable: {gameState.get_accusable()}")
 
 	# private function to pass into bot.wait_for()
 	def check(message: discord.message):
 		return message.channel == ctx.channel
 	
+	eligible = gameState.get_players()
+	print(eligible)
+	eligible.remove(ctx.author.id)
+	print(eligible)
+	skips = []
 	try:
-		guess = await bot.wait_for("message", check=check, timeout=14.0)
+		guess = await bot.wait_for("message", 
+							 				check=lambda m: m.author.id in eligible and m.content.lower() in ("counter", "skip"), 
+											timeout=14.0)
+		
 		if guess.content.strip().lower() == "counter":
 			gameState.set_accusable(guess.author.id)
 			print(gameState.get_accusable())
@@ -197,6 +219,11 @@ async def action(ctx, role="", player:discord.Member = None, ):
 					await ctx.send(f"assassin blocked by {guess.author.display_name}!")
 				case "ambassador", "captain":
 					await ctx.send(f"steal blocked by {guess.author.display_name}!")
+		elif guess.content.strip().lower() == "skip":
+			if guess.author.id not in skips: skips.append(guess.author.id)
+			print(skips)
+			if skips == eligible:
+				return await ctx.send("counteraction phase skipped")
 		else:
 			await ctx.send(f"are you trying to counter? Maybe you mispelled: **counter**")
 
@@ -219,11 +246,41 @@ async def action(ctx, role="", player:discord.Member = None, ):
 async def challenge(ctx, player:discord.Member, role):
 	# ERROR HANDLING
 	if gameState is None: return await ctx.send(f"No game currently in progress")
-	if player
+	if player != gameState.get_accusable(): 
+		return await ctx.send(f"{player.display_name} is not a valid player to challenge at this time. However, you may challenge {gameState.get_accusable()}")
 	if role=="" or role.lower() not in [w.lower() for w in gameState.get_roles()]: 
-		return await ctx.send(f"{ctx.author.mention}, Specify a role who's action you'll perform!")
-	return 
-
+		return await ctx.send(f"{ctx.author.mention}, Specify a valid role to accuse them of!")
+	
+	# check if challenged player has role
+	if role.lower() in (card.lower() for card in gameState.get_hand(player.id)):
+		await ctx.send(f"{ctx.author.display_name} has succesfully challenged {player.display_name} for having {role}! \n"
+				 	   f"{player.display_name} now has 1 card left")
+	else:
+		await ctx.send(f"{ctx.author.display_name} has unsuccesfully challenged {player.display_name} for having {role}! \n"
+				 	   f"{ctx.author.display_name} will now choose a card to discard back to the deck."
+					   f"Please wait a moment while they choose which card to lose")
+		
+	def check(m: discord.Message):
+		# ✅ Only accept if:
+		# 1. Author is the target player
+		# 2. Message is in a DM channel
+		print(m.author)
+		print(ctx.author)
+		return m.author == ctx.author and isinstance(m.channel, discord.DMChannel)
+	
+	try:
+		choice = await bot.wait_for("message", check=check, timeout=20.0)
+		if not choice.content.isnumeric() and (choice.content == 1 or choice.content == 2):
+			await ctx.player.send("type 1 or 2 for which card to lose")
+		else:
+			gameState.remove_card(player, choice - 1)
+			await ctx.player.send(f"Your hand is now: {gameState.get_hand[0]} Good Luck.")
+			await ctx.send(f"{ctx.author.display_name} is now down to one card.")
+	except asyncio.TimeoutError:
+		gameState.remove_card(player, random.randint(0, 1))
+		await ctx.player.send("Times up! I chose for you"
+							  f"Your hand is now: {gameState.get_hand[0]} Good Luck.")
+		await ctx.send(f"{ctx.author.display_name} is now down to one card.")
 
 
 @bot.command(help="End current game of coup")
