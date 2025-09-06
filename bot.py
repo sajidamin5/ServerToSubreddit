@@ -61,6 +61,9 @@ gameState = None
 class GameState:
 	def __init__(self, players):
 
+		# channel game was instatiated in
+		self.channel = ""
+  
 		ids = [p.id for p in players]
 		if len(ids) != len(set(ids)):
 			raise ValueError("Duplicate players detected!")
@@ -91,13 +94,18 @@ class GameState:
 			# two cards per player
 			pData["hand"].append(self.deck.pop())
 			pData["hand"].append(self.deck.pop())
-   
 
 	def set_accusable(self, player_id=""):
 		self.accusable = player_id
 	
 	def get_accusable(self):
 		return self.accusable
+
+	def set_channel(self, channel=""):
+		self.channel = channel
+	
+	def get_channel(self):
+		return self.channel
 
 	def set_phase(self, phase=""):
 		self.phase=phase
@@ -131,7 +139,15 @@ class GameState:
 
 	def remove_card(self, player_id, idx):
 		if player_id in self.players:
-			self.player[player_id]["hand"] = self.player[player_id]["hand"].remove(idx)
+			hand = self.players[player_id]["hand"]
+			print(hand)
+			print(self.deck)
+			self.deck.append(hand.pop(idx))
+			random.shuffle(self.deck)
+			self.players[player_id]["hand"] = hand
+			print(hand)
+			print(self.deck)
+	
 
 	def get_hand(self, player_id):
 		if player_id in self.players:
@@ -172,6 +188,7 @@ async def coup(ctx, *players: discord.Member):
 			return await ctx.send("please only supply the @s of members in the server")
 
 	gameState = GameState(players)
+	gameState.set_channel(ctx.channel)
 	await ctx.send("A coup has begun to brew! Your roles have been sent to you, good luck rebels.")
 
 	# notify player of handstate
@@ -201,9 +218,9 @@ async def action(ctx, role="", player:discord.Member = None, ):
 	# TODO: find a way to break out of the action loop once the challenge begins. maybe add something to lambda?
 	await ctx.send(f"{ctx.author.display_name} is performing {role}! \n"
 					"the rest of the players have 10 seconds to perform a counteraction \n"
-     				f"- type **!challenge @{ctx.author} {role}** to challenge of {ctx.author.display_name}'s {role} \n"
+     				f"- type **!challenge @{ctx.author} {role.capitalize()}** to challenge of {ctx.author.display_name}'s {role} \n"
      				f"- type **counter** to perform a counteraction \n"
-					f"- type **skip** to move to next turn (must be entered by all other players)")
+					f"- type **skip** to move to next turn (must be entered by all other players) \n \n")
 
  
 	gameState.set_accusable(ctx.author.id)
@@ -215,16 +232,18 @@ async def action(ctx, role="", player:discord.Member = None, ):
 
 	skips = []
 	try:
-		# exit if a player initiated a challenge
-		if gameState.get_phase() == "challenge": return
-	
 		guess = await bot.wait_for("message", 
-							 				check=lambda m: m.author.id in eligible and m.content.lower() in ("counter", "skip"), 
-											timeout=14.0)
+									check=lambda m: m.author.id in eligible 
+									and m.content.lower() in ("counter", "skip") 
+									and m.channel == gameState.get_channel(), 
+									timeout=14.0)
+  
+		# exit if a player initiated a challenge
+		if gameState.get_phase() == "challenge": return print("challenged")
+
 		
 		if guess.content.strip().lower() == "counter":
 			gameState.set_accusable(guess.author.id)
-			print(gameState.get_accusable())
 			match role:
 				case "duke":
 					await ctx.send(f"foreign aid blocked by {guess.author.display_name}!")
@@ -241,7 +260,9 @@ async def action(ctx, role="", player:discord.Member = None, ):
 			await ctx.send(f"are you trying to counter? Maybe you mispelled: **counter**")
 
 	except asyncio.TimeoutError:
-		
+		# exit if a player initiated a challenge
+		if gameState.get_phase() == "challenge": return print("challenged")
+  
 		await ctx.channel.send(f":alarm_clock: Counter action period closed! {ctx.author.display_name}'s action was performed")
 		match role:
 			case "duke":
@@ -263,43 +284,46 @@ async def action(ctx, role="", player:discord.Member = None, ):
 async def challenge(ctx, player:discord.Member, role):
 	# ERROR HANDLING
 	if gameState is None: return await ctx.send(f"No game currently in progress")
-	gameState.set_phase("challenge")	
+	gameState.set_phase("challenge")
  
 	if player.id != gameState.get_accusable(): 
 		return await ctx.send(f"{player.display_name} is not a valid player to challenge at this time. However, you may challenge {gameState.get_accusable()}")
 	if role=="" or role.lower() not in [w.lower() for w in gameState.get_roles()]: 
 		return await ctx.send(f"{ctx.author.mention}, Specify a valid role to accuse them of!")
 	
+	loser = None
+ 
 	# check if challenged player has role
 	if role.lower() not in (card.lower() for card in gameState.get_hand(player.id)):
 		await ctx.send(f"{ctx.author.display_name} has succesfully challenged {player.display_name} for having {role}! \n"
-				 	   f"{player.display_name} now has 1 card left")
+				 	   f"{player.display_name} will now choose a card to discard back to the deck.")
+		loser = player
 	else:
 		await ctx.send(f"{ctx.author.display_name} has unsuccesfully challenged {player.display_name} for having {role}! \n"
-				 	   f"{ctx.author.display_name} will now choose a card to discard back to the deck."
-					   f"Please wait a moment while they choose which card to lose")
-		
+				 	   f"{ctx.author.display_name} will now choose a card to discard back to the deck.")
+		loser = ctx.author
+	await ctx.send(f"Please wait a moment while they choose which card to lose")
+	await loser.send(f"Please reply 1 or 2 for which card you'd like to get rid of")
+
 	def check(m: discord.Message):
 		# ✅ Only accept if:
 		# 1. Author is the target player
 		# 2. Message is in a DM channel
-		print(m.author)
-		print(ctx.author)
-		return m.author == ctx.author and isinstance(m.channel, discord.DMChannel)
+		return m.author == loser and isinstance(m.channel, discord.DMChannel)
 	
 	try:
-		choice = await bot.wait_for("message", check=check, timeout=20.0)
-		if not choice.content.isnumeric() and (choice.content == 1 or choice.content == 2):
-			await ctx.player.send("type 1 or 2 for which card to lose")
+		choice = await bot.wait_for("message", check=check, timeout=10.0)
+		if not choice.content.isnumeric():
+			await loser.send("type 1 or 2 for which card to lose")
 		else:
-			gameState.remove_card(player, choice - 1)
-			await ctx.player.send(f"Your hand is now: {gameState.get_hand[0]} Good Luck.")
-			await ctx.send(f"{ctx.author.display_name} is now down to one card.")
+			gameState.remove_card(loser.id, int(choice.content) - 1)
+			await loser.send(f"Your hand is now: {gameState.get_hand(loser.id)[0]} Good Luck.")
+			await ctx.send(f"{loser.display_name} is now down to one card.")
 	except asyncio.TimeoutError:
-		gameState.remove_card(player, random.randint(0, 1))
-		await ctx.player.send("Times up! I chose for you"
-							  f"Your hand is now: {gameState.get_hand[0]} Good Luck.")
-		await ctx.send(f"{ctx.author.display_name} is now down to one card.")
+		gameState.remove_card(loser.id, random.randint(0, 1))
+		await loser.send("Times up! I chose for you. \n"
+						 f"Your hand is now: {gameState.get_hand(loser.id)[0]} Good Luck.")
+		await ctx.send(f"{loser.display_name} is now down to one card.")
 
 
 @bot.command(help="End current game of coup")

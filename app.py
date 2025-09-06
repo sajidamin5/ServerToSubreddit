@@ -1,2 +1,4 @@
-for x in range(6):
-    print(x)
+l = ["poop", "pee"]
+print(l)
+l.remove("poop")
+print(l)
