@@ -50,9 +50,10 @@ tablePointer.execute("CREATE TABLE IF NOT EXISTS tblWallets (userID INTEGER PRIM
 pokedex = None
 reverse_pokedex = None
 images_dir = '/Users/Sajid/Desktop/sprites/pokemon'
-with open("pokedex.json", "r", encoding="utf-8") as f:
-	pokedex = json.load(f)
-	reverse_pokedex = {v.lower(): k for k, v in pokedex.items()}
+if not platform.system() == "Darwin":
+	with open("pokedex.json", "r", encoding="utf-8") as f:
+		pokedex = json.load(f)
+		reverse_pokedex = {v.lower(): k for k, v in pokedex.items()}
 
 # coup globals stuff
 gameState = None
@@ -64,6 +65,8 @@ class GameState:
 		if len(ids) != len(set(ids)):
 			raise ValueError("Duplicate players detected!")
 		
+		self.phase = ""
+
 		# coins/hands of each player
 		self.players = {player.id: {"coins": 2, "hand" : []} for player in players}
 
@@ -88,6 +91,7 @@ class GameState:
 			# two cards per player
 			pData["hand"].append(self.deck.pop())
 			pData["hand"].append(self.deck.pop())
+   
 
 	def set_accusable(self, player_id=""):
 		self.accusable = player_id
@@ -95,6 +99,12 @@ class GameState:
 	def get_accusable(self):
 		return self.accusable
 
+	def set_phase(self, phase=""):
+		self.phase=phase
+	
+	def get_phase(self):
+		return self.phase
+ 
 	def get_roles(self):
 		return list(self.cards.keys())
 
@@ -183,28 +193,31 @@ async def action(ctx, role="", player:discord.Member = None, ):
 	if role=="" or role.lower() not in [w.lower() for w in gameState.get_roles()]: 
 		return await ctx.send(f"{ctx.author.mention}, Specify a role who's action you'll perform!")
 
+	# clearing accusable from previous action and resetting gamestate
 	gameState.set_accusable("")
-	print(gameState.get_accusable())
+	gameState.set_phase("action")
 
 	# TODO: case for when role -> COUP because this cannot be countered
-	# TODO: increase counteraction window timer but incorporate a vote skip function if all players (excluding actioneer vote yes)
+	# TODO: find a way to break out of the action loop once the challenge begins. maybe add something to lambda?
 	await ctx.send(f"{ctx.author.display_name} is performing {role}! \n"
-					"the rest of the players have 14 seconds to perform a counteraction - type **counter** in chat \n"
-					"all players can type **skip** to move on")
-	
-	gameState.set_accusable(ctx.author.id)
-	print(f"accusable: {gameState.get_accusable()}")
+					"the rest of the players have 10 seconds to perform a counteraction \n"
+     				f"- type **!challenge @{ctx.author} {role}** to challenge of {ctx.author.display_name}'s {role} \n"
+     				f"- type **counter** to perform a counteraction \n"
+					f"- type **skip** to move to next turn (must be entered by all other players)")
 
-	# private function to pass into bot.wait_for()
-	def check(message: discord.message):
-		return message.channel == ctx.channel
+ 
+	gameState.set_accusable(ctx.author.id)
+	# print(f"accusable: {gameState.get_accusable()}")
 	
 	eligible = gameState.get_players()
-	print(eligible)
+	# remove actioneer from eligble skipper pool
 	eligible.remove(ctx.author.id)
-	print(eligible)
+
 	skips = []
 	try:
+		# exit if a player initiated a challenge
+		if gameState.get_phase() == "challenge": return
+	
 		guess = await bot.wait_for("message", 
 							 				check=lambda m: m.author.id in eligible and m.content.lower() in ("counter", "skip"), 
 											timeout=14.0)
@@ -223,7 +236,7 @@ async def action(ctx, role="", player:discord.Member = None, ):
 			if guess.author.id not in skips: skips.append(guess.author.id)
 			print(skips)
 			if skips == eligible:
-				return await ctx.send("counteraction phase skipped")
+				await ctx.send("counteraction phase skipped")
 		else:
 			await ctx.send(f"are you trying to counter? Maybe you mispelled: **counter**")
 
@@ -241,18 +254,24 @@ async def action(ctx, role="", player:discord.Member = None, ):
 				await ctx.send(f"redraw!")
 			case "captain":
 				await ctx.send(f"steal!")
+    
+    # increment turn counter forward
+	gameState.next_turn()
 
+# TODO: I need to handle the action successfully resolving if the challenge fails. maybe encapsualate success state in a function
 @bot.command(help="COUP COMMAND ONLY: Challenge a player of a given role")
 async def challenge(ctx, player:discord.Member, role):
 	# ERROR HANDLING
 	if gameState is None: return await ctx.send(f"No game currently in progress")
-	if player != gameState.get_accusable(): 
+	gameState.set_phase("challenge")	
+ 
+	if player.id != gameState.get_accusable(): 
 		return await ctx.send(f"{player.display_name} is not a valid player to challenge at this time. However, you may challenge {gameState.get_accusable()}")
 	if role=="" or role.lower() not in [w.lower() for w in gameState.get_roles()]: 
 		return await ctx.send(f"{ctx.author.mention}, Specify a valid role to accuse them of!")
 	
 	# check if challenged player has role
-	if role.lower() in (card.lower() for card in gameState.get_hand(player.id)):
+	if role.lower() not in (card.lower() for card in gameState.get_hand(player.id)):
 		await ctx.send(f"{ctx.author.display_name} has succesfully challenged {player.display_name} for having {role}! \n"
 				 	   f"{player.display_name} now has 1 card left")
 	else:
@@ -425,6 +444,16 @@ async def system(ctx):
         this_os = "macOS"
         
     await ctx.channel.send(f"I am currently running on {this_os}!")
+
+@bot.event
+async def on_message(message):    
+    if message.author == bot.user:
+        return
+    
+    if message.content.lower() == "nice":
+        await message.channel.send("nice")
+    
+    await bot.process_commands(message)
 
 @bot.command(help="see how big you are!")      
 async def penis(ctx):
