@@ -137,16 +137,15 @@ class GameState:
 		if player_id in self.players:
 			self.players[player_id]["coins"] = max(0, self.players[player_id]["coins"] - amount)
 
+	# returns the removed card as well if needed
 	def remove_card(self, player_id, idx):
 		if player_id in self.players:
 			hand = self.players[player_id]["hand"]
-			print(hand)
-			print(self.deck)
-			self.deck.append(hand.pop(idx))
+			removed = hand.pop(idx)
+			self.deck.append(removed)
 			random.shuffle(self.deck)
 			self.players[player_id]["hand"] = hand
-			print(hand)
-			print(self.deck)
+			return removed
 	
 
 	def get_hand(self, player_id):
@@ -209,13 +208,13 @@ async def action(ctx, role="", player:discord.Member = None, ):
 	if ctx.author is not gameState.current_player(): return await ctx.send(f"{ctx.author.mention}, It's not your turn!")
 	if role=="" or role.lower() not in [w.lower() for w in gameState.get_roles()]: 
 		return await ctx.send(f"{ctx.author.mention}, Specify a role who's action you'll perform!")
+	if gameState.get_phase() == "action": return await ctx.send("Action currently in progress! Wait until it has resolved")
 
 	# clearing accusable from previous action and resetting gamestate
 	gameState.set_accusable("")
 	gameState.set_phase("action")
 
 	# TODO: case for when role -> COUP because this cannot be countered
-	# TODO: find a way to break out of the action loop once the challenge begins. maybe add something to lambda?
 	await ctx.send(f"{ctx.author.display_name} is performing {role}! \n"
 					"the rest of the players have 10 seconds to perform a counteraction \n"
      				f"- type **!challenge @{ctx.author} {role.capitalize()}** to challenge of {ctx.author.display_name}'s {role} \n"
@@ -246,11 +245,11 @@ async def action(ctx, role="", player:discord.Member = None, ):
 			gameState.set_accusable(guess.author.id)
 			match role:
 				case "duke":
-					await ctx.send(f"foreign aid blocked by {guess.author.display_name}!")
+					await ctx.send(f"{ctx.author.display_name}'s foreign aid blocked by {guess.author.display_name}!")
 				case "contessa":
-					await ctx.send(f"assassin blocked by {guess.author.display_name}!")
+					await ctx.send(f"{ctx.author.display_name}'s assassin blocked by {guess.author.display_name}!")
 				case "ambassador", "captain":
-					await ctx.send(f"steal blocked by {guess.author.display_name}!")
+					await ctx.send(f"{ctx.author.display_name}'s steal blocked by {guess.author.display_name}!")
 		elif guess.content.strip().lower() == "skip":
 			if guess.author.id not in skips: skips.append(guess.author.id)
 			print(skips)
@@ -261,7 +260,10 @@ async def action(ctx, role="", player:discord.Member = None, ):
 
 	except asyncio.TimeoutError:
 		# exit if a player initiated a challenge
-		if gameState.get_phase() == "challenge": return print("challenged")
+		if gameState.get_phase() == "challenge":
+			gameState.next_turn()
+			print(gameState.current_player)
+			return 
   
 		await ctx.channel.send(f":alarm_clock: Counter action period closed! {ctx.author.display_name}'s action was performed")
 		match role:
@@ -277,6 +279,7 @@ async def action(ctx, role="", player:discord.Member = None, ):
 				await ctx.send(f"steal!")
     
     # increment turn counter forward
+	gameState.set_phase("interim")
 	gameState.next_turn()
 
 # TODO: I need to handle the action successfully resolving if the challenge fails. maybe encapsualate success state in a function
@@ -294,37 +297,45 @@ async def challenge(ctx, player:discord.Member, role):
 	loser = None
  
 	# check if challenged player has role
+	# TODO (a bit complex): write gameplay loop for if player initiated challenge but failed -> action still goesw through
 	if role.lower() not in (card.lower() for card in gameState.get_hand(player.id)):
-		await ctx.send(f"{ctx.author.display_name} has succesfully challenged {player.display_name} for having {role}! \n"
-				 	   f"{player.display_name} will now choose a card to discard back to the deck.")
+		await ctx.send(f"{ctx.author.mention} has succesfully challenged {player.mention} for having {role}! \n"
+				 	   f"{player.mention} will now choose a card to discard back to the deck.")
 		loser = player
 	else:
-		await ctx.send(f"{ctx.author.display_name} has unsuccesfully challenged {player.display_name} for having {role}! \n"
-				 	   f"{ctx.author.display_name} will now choose a card to discard back to the deck.")
+		await ctx.send(f"{ctx.author.mention} has unsuccesfully challenged {player.display_name} for having {role}! "
+				 	   f"so they will now choose a card to discard.")
 		loser = ctx.author
 	await ctx.send(f"Please wait a moment while they choose which card to lose")
-	await loser.send(f"Please reply 1 or 2 for which card you'd like to get rid of")
+	
+	# only give choice if they have 2 cards, otherwise they lose their remaining
+	if len(gameState.get_hand(loser.id)) == 2:
+		await loser.send(f"Please reply 1 or 2 for which card you'd like to get rid of")
+	else:
+		removed = gameState.remove_card(loser.id, 0)
+		await loser.send(f"Your hand is gone since you only had {removed} left. You're out, GGs!")
+		await ctx.send(f"{loser.display_name} has lost all their cards so they're out")
+		return
 
 	def check(m: discord.Message):
 		# ✅ Only accept if:
 		# 1. Author is the target player
 		# 2. Message is in a DM channel
 		return m.author == loser and isinstance(m.channel, discord.DMChannel)
-	
+
 	try:
 		choice = await bot.wait_for("message", check=check, timeout=10.0)
 		if not choice.content.isnumeric():
 			await loser.send("type 1 or 2 for which card to lose")
 		else:
-			gameState.remove_card(loser.id, int(choice.content) - 1)
-			await loser.send(f"Your hand is now: {gameState.get_hand(loser.id)[0]} Good Luck.")
+			removed = gameState.remove_card(loser.id, int(choice.content) - 1)
+			await loser.send(f"{removed} has been returned back to the deck. Your hand is now {gameState.get_hand(loser.id)[0]}, Good Luck.")
 			await ctx.send(f"{loser.display_name} is now down to one card.")
 	except asyncio.TimeoutError:
-		gameState.remove_card(loser.id, random.randint(0, 1))
+		removed = gameState.remove_card(loser.id, random.randint(0, len(gameState.get_hand(loser.id)) - 1))
 		await loser.send("Times up! I chose for you. \n"
-						 f"Your hand is now: {gameState.get_hand(loser.id)[0]} Good Luck.")
+						f"{removed} has been returned back to the deck. Your hand is now: {gameState.get_hand(loser.id)[0]} Good Luck.")
 		await ctx.send(f"{loser.display_name} is now down to one card.")
-
 
 @bot.command(help="End current game of coup")
 async def endgame(ctx):
