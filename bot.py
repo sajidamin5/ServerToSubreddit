@@ -126,6 +126,12 @@ class GameState:
 	def current_player(self):
 		return self.turn_order[0]
 
+	def remove_player(self, player):
+		return self.turn_order.remove(player)
+
+	def players_alive(self):
+		return len(self.turn_order)
+
 	def get_coins(self):
 		return {pid: pdata["coins"] for pid, pdata in self.players.items()}
 	
@@ -204,6 +210,8 @@ async def coup(ctx, *players: discord.Member):
 @bot.command(help="COUP COMMAND ONLY: Performs an action given a role")
 async def action(ctx, role="", player:discord.Member = None, ):
 	# ERROR HANDLING
+	# TODO: add error handling (maybe via data structure or hand len check to see if player is in game still)
+	#       could even just remove them from the deque. OH WAIT IT'S HANDLEDE VY THE GAMESTATE CHECK.
 	if gameState is None: return await ctx.send(f"No game currently in progress")
 	if ctx.author is not gameState.current_player(): return await ctx.send(f"{ctx.author.mention}, It's not your turn!")
 	if role=="" or role.lower() not in [w.lower() for w in gameState.get_roles()]: 
@@ -217,9 +225,9 @@ async def action(ctx, role="", player:discord.Member = None, ):
 	# TODO: case for when role -> COUP because this cannot be countered
 	await ctx.send(f"{ctx.author.display_name} is performing {role}! \n"
 					"the rest of the players have 10 seconds to perform a counteraction \n"
-     				f"- type **!challenge @{ctx.author} {role.capitalize()}** to challenge of {ctx.author.display_name}'s {role} \n"
      				f"- type **counter** to perform a counteraction \n"
-					f"- type **skip** to move to next turn (must be entered by all other players) \n \n")
+					f"- type **skip** to move to next turn (must be entered by all other players) \n"
+     				f"- type (or copy) the following to challenge of {ctx.author.display_name}'s {role}: ```!challenge @{ctx.author} {role.capitalize()}``` \n \n")
 
  
 	gameState.set_accusable(ctx.author.id)
@@ -265,7 +273,8 @@ async def action(ctx, role="", player:discord.Member = None, ):
 			print(gameState.current_player)
 			return 
   
-		await ctx.channel.send(f":alarm_clock: Counter action period closed! {ctx.author.display_name}'s action was performed")
+		await ctx.channel.send(f":alarm_clock:  Counter action period closed!  :alarm_clock:  "
+                         	   f"{ctx.author.display_name}'s action was performed")
 		match role:
 			case "duke":
 				await ctx.send(f"{ctx.author.mention} recieved foreign aid!")
@@ -290,7 +299,8 @@ async def challenge(ctx, player:discord.Member, role):
 	gameState.set_phase("challenge")
  
 	if player.id != gameState.get_accusable(): 
-		return await ctx.send(f"{player.display_name} is not a valid player to challenge at this time. However, you may challenge {gameState.get_accusable()}")
+		return await ctx.send(f"{player.display_name} is not a valid player to challenge at this time." 
+                        	  f"However, you may challenge {gameState.get_accusable()}")
 	if role=="" or role.lower() not in [w.lower() for w in gameState.get_roles()]: 
 		return await ctx.send(f"{ctx.author.mention}, Specify a valid role to accuse them of!")
 	
@@ -299,10 +309,10 @@ async def challenge(ctx, player:discord.Member, role):
 	# check if challenged player has role
 	# TODO (a bit complex): write gameplay loop for if player initiated challenge but failed -> action still goesw through
 	if role.lower() not in (card.lower() for card in gameState.get_hand(player.id)):
-		await ctx.send(f"{ctx.author.mention} has succesfully challenged {player.mention} for having {role}! \n"
+		await ctx.send(f"{ctx.author.display_name} has succesfully challenged {player.display_name} for having {role}! \n"
 				 	   f"{player.mention} will now choose a card to discard back to the deck.")
 		loser = player
-	else:
+	else: # TODO: if the challenge is unsuccseful (meaning they player has the role, player will redraw as well)
 		await ctx.send(f"{ctx.author.mention} has unsuccesfully challenged {player.display_name} for having {role}! "
 				 	   f"so they will now choose a card to discard.")
 		loser = ctx.author
@@ -315,7 +325,12 @@ async def challenge(ctx, player:discord.Member, role):
 		removed = gameState.remove_card(loser.id, 0)
 		await loser.send(f"Your hand is gone since you only had {removed} left. You're out, GGs!")
 		await ctx.send(f"{loser.display_name} has lost all their cards so they're out")
-		return
+		gameState.remove_player(loser)
+
+		# check for victory state:
+		if gameState.players_alive() == 1:
+			await ctx.send(f"Winner winner chicken dinner! {gameState.current_player()} is the last one standing")
+			return endgame(ctx)
 
 	def check(m: discord.Message):
 		# ✅ Only accept if:
@@ -329,12 +344,14 @@ async def challenge(ctx, player:discord.Member, role):
 			await loser.send("type 1 or 2 for which card to lose")
 		else:
 			removed = gameState.remove_card(loser.id, int(choice.content) - 1)
-			await loser.send(f"{removed} has been returned back to the deck. Your hand is now {gameState.get_hand(loser.id)[0]}, Good Luck.")
+			await loser.send(f"{removed} has been returned back to the deck." 
+                    		 f"Your hand is now {gameState.get_hand(loser.id)[0]}, Good Luck.")
 			await ctx.send(f"{loser.display_name} is now down to one card.")
 	except asyncio.TimeoutError:
 		removed = gameState.remove_card(loser.id, random.randint(0, len(gameState.get_hand(loser.id)) - 1))
 		await loser.send("Times up! I chose for you. \n"
-						f"{removed} has been returned back to the deck. Your hand is now: {gameState.get_hand(loser.id)[0]} Good Luck.")
+						f"{removed} has been returned back to the deck." 
+      					f"Your hand is now: {gameState.get_hand(loser.id)[0]} Good Luck.")
 		await ctx.send(f"{loser.display_name} is now down to one card.")
 
 @bot.command(help="End current game of coup")
