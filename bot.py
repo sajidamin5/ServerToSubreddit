@@ -318,17 +318,16 @@ async def challenge(ctx, player:discord.Member, role):
 	if role=="" or role.lower() not in [w.lower() for w in gameState.get_roles()]: 
 		return await ctx.send(f"{ctx.author.mention}, Specify a valid role to accuse them of!")
 	
-	gameState.set_phase("challenge")
 	loser = None
 	winner = None
  
 	# check if challenged player has role
-	# TODO (a bit complex): write gameplay loop for if player initiated challenge but failed -> action still goesw through
 	if role.lower() not in (card.lower() for card in gameState.get_hand(player.id)):
+		gameState.set_phase("challenge")
 		await ctx.send(f"{ctx.author.display_name} has succesfully challenged {player.display_name} for having {role}! \n"
 				 	   f"{player.mention} will now choose a card to discard back to the deck.")
 		loser = player
-	else: # TODO: if the challenge is unsuccseful (meaning they player has the role, player will redraw as well)
+	else:
 		await ctx.send(f"{ctx.author.mention} has unsuccesfully challenged {player.display_name} for having {role}! \n"
 				 	   f"{ctx.author.display_name} will now choose a card to discard and {player.display_name} will reshuffle their {role} and redraw.")
 		loser = ctx.author
