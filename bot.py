@@ -14,6 +14,7 @@ import random
 import platform
 import sqlite3
 from collections import deque
+from discord import Embed
 
 
 
@@ -170,6 +171,7 @@ class GameState:
 				toString = f"Your hand is now the following: \n"
 				for x, card in enumerate(hand):
 					toString += f"Card {x+1}: {card} \n"
+				toString = toString.rstrip("\n")
 				return toString
 		
 		
@@ -204,6 +206,7 @@ async def coup(ctx, *players: discord.Member):
 	if not players or len(players) == 1:
 		return await ctx.send("You need atleast two players to play coup!")
 
+	# TODO: add instanceOf(_, discord.Member) checks for all functions that take discord member
 	for player in players:
 		if not isinstance(player, discord.Member):
 			return await ctx.send("please only supply the @s of members in the server")
@@ -292,7 +295,8 @@ async def action(ctx, role="", player:discord.Member = None, ):
                          	   f"{ctx.author.display_name}'s action was performed")
 		match role:
 			case "duke":
-				await ctx.send(f"{ctx.author.mention} recieved foreign aid!")
+				gameState.add_coins(ctx.author.id, 2)
+				await ctx.send(f"{ctx.author.mention} recieved foreign aid! They now have {gameState.players[ctx.author.id]['coins']} tokens")
 			case "contessa":
 				await ctx.send(f"nothing happpened...")
 			case "assassin":
@@ -375,6 +379,29 @@ async def challenge(ctx, player:discord.Member, role):
 						f"{removed} has been returned back to the deck. \n" 
       					f"Your hand is now: {gameState.get_hand(loser.id)[0]}, Good Luck.")
 		await ctx.send(f"{loser.display_name} is now down to one card.")
+
+@bot.command(help="Displays token balances of given player, otherwise displays everyone's if none is given")
+async def bank(ctx, player:discord.Member = None):
+	global gameState
+
+	if gameState is None:
+		return await ctx.send("No game is currently running.")
+	
+	if player is None:
+		lines = []
+		for player_id, data in gameState.players.items():
+			player = await ctx.guild.fetch_member(player_id)
+			coins = data['coins']
+			lines.append(f"{player.display_name:<12} : {coins}")
+		result = "\n".join(lines)
+		formatted = f"```\nToken Balances:\n{result}\n```"
+	else:
+		player = await ctx.guild.fetch_member(player.id)
+		coins = gameState.players[player.id]["coins"]
+		result = f"{player.display_name} : {coins}"
+		formatted = f"```\nToken Balances:\n{result}\n```"
+	await ctx.send(formatted)
+
 
 @bot.command(help="End current game of coup")
 async def endgame(ctx):
