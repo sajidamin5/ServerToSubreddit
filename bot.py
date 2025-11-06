@@ -28,6 +28,7 @@ token = 'NzcwOTU3MDU2NjE4MTM1NTUz.GhEOVg.Po-iJ21WZ9ZUqt6F3C6GfP7ZnoQV7y2n1Qu53U'
 # run only the first time
 nltk.download('wordnet')
 
+hidden_gems = [":cucumber:", ":pretzel:", ":chipmunk:", ":llama:", ":hedgehog:", ":pickle:", ":peacock:", ":yo_yo:", ":jigsaw:", ":magic_wand:", ":jellyfish:", ":sewing_needle:", ":placard:", ":hook:", ":magnet:", ":test_tube:", ":petri_dish:", ":abacus:", ":teddy_bear:", ":crayon:", ":probing_cane:", ":mouse_trap:", ":puzzle_piece:", ":ringed_planet:", ":roll_of_paper:", ":seal:", ":wing:", ":worm:", ":zombie:", ":transgender_symbol:", ":ninja:", ":pirate_flag:", ":olive:", ":fondue:", ":waffle:", ":bagel:", ":teapot:", ":bubble_tea:", ":jar:", ":cockroach:", ":beetle:", ":beaver:", ":sloth:", ":otter:", ":skunk:", ":flamingo:", ":feather:", ":wing:", ":bone:", ":coral:", ":lotus:", ":potted_plant:", ":rock:", ":wood:", ":hut:", ":thread:", ":yarn:", ":knot:", ":safety_pin:"]
 
 intents = discord.Intents.all() 
 client = discord.Client(intents=intents)
@@ -95,7 +96,7 @@ class GameState:
 			# two cards per player
 			pData["hand"].append(self.deck.pop())
 			pData["hand"].append(self.deck.pop())
-
+   
 	def set_accusable(self, player_id=""):
 		self.accusable = player_id
 	
@@ -206,7 +207,6 @@ async def coup(ctx, *players: discord.Member):
 	if not players or len(players) == 1:
 		return await ctx.send("You need atleast two players to play coup!")
 
-	# TODO: add instanceOf(_, discord.Member) checks for all functions that take discord member
 	for player in players:
 		if not isinstance(player, discord.Member):
 			return await ctx.send("please only supply the @s of members in the server")
@@ -225,7 +225,32 @@ async def coup(ctx, *players: discord.Member):
 					 			"Good luck!" )
 		except discord.Forbidden:
 			await ctx.send(f"I couldn't DM {player.mention}. They might have DMs disabled.")
+   
 
+@bot.command(help="Simple Chat Level Clear/Reset Command for when you need Mr.Clean to wipe shit down")
+async def obfuscate(ctx):
+	'''
+    HUERISTICS:
+    1) requires trusted/unstrusted parties (can use existing whitelist/blacklist/purgatory states)
+    2) has to occur before observation of the obfuscated entity: i.e. observation ---> | ---> [screen]
+    '''
+	# await ctx.send(f"~"
+    #  			    f"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+    #                f"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+    #                f"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+    #                f"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+    #                f"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+    #                f"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+    #                f"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+    #                f"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+    #                f"~")
+    
+	buffer = '~'
+	for x in range(200):
+			buffer += '\n'
+	buffer += random.choice(hidden_gems)
+	await ctx.send(buffer)
+         
 @bot.command(help="COUP COMMAND ONLY: Performs an action given a role")
 async def action(ctx, role="", player:discord.Member = None, ):
 	# ERROR HANDLING
