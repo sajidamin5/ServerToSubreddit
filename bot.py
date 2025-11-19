@@ -15,14 +15,14 @@ import platform
 import sqlite3
 from collections import deque
 from discord import Embed
-
-
-
+from dotenv import load_dotenv
 import requests
 
-
-# TODO: make global constants that are somehow protected or add to zhsrc file
-token = 'NzcwOTU3MDU2NjE4MTM1NTUz.GhEOVg.Po-iJ21WZ9ZUqt6F3C6GfP7ZnoQV7y2n1Qu53U'
+# Grab token from system rather than hardcoding that boy into the file
+load_dotenv()  # loads .env into environment for local dev
+token = os.environ.get("DISCORD_TOKEN")
+if not token:
+    raise RuntimeError("DISCORD_TOKEN environment variable not set. Add to system vars or create .env with DISCORD_TOKEN=<token>")
 
 
 # run only the first time
@@ -226,6 +226,11 @@ async def coup(ctx, *players: discord.Member):
 		except discord.Forbidden:
 			await ctx.send(f"I couldn't DM {player.mention}. They might have DMs disabled.")
    
+@bot.command(help="Poker Spot Generator: Gives you a preflop hand and position at the table")
+async def preflop(ctx):
+	# TODO: build out to more than just preflop? Pass in stack size and auto generate stacks for other lpawys
+	return 1
+
 
 @bot.command(help="Simple Chat Level Clear/Reset Command for when you need Mr.Clean to wipe shit down")
 async def obfuscate(ctx):
