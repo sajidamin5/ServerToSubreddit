@@ -195,7 +195,63 @@ class GameState:
 		for pid, pdata in self.players.items():
 			lines.append(f"Player {pid}: {pdata['coins']} coins, hand={pdata['hand']}")
 		return "\n".join(lines)
+
+RANKS = "23456789TJQKA"
+SUITS = "CDHS"  # clubs, diamonds, hearts, spades
+
+def id_to_card(i: int) -> str:
+    return RANKS[i % 13] + SUITS[i // 13]
+
+def card_to_id(rank: str, suit: str) -> int:
+    return RANKS.index(rank) + SUITS.index(suit) * 13
+
+("Chat-GPT", "Raptor Mini	")
+class StandardDeck:
+    """Efficient 52-card deck using ints 0..51."""
+    def __init__(self, decks: int = 1, shuffle: bool = True):
+        self._cards = [i for _ in range(decks) for i in range(52)]
+        if shuffle:
+            self.shuffle()
+
+    def shuffle(self):
+        random.shuffle(self._cards)
+
+    def draw(self, n: int = 1):
+        if n == 1:
+            return self._cards.pop() if self._cards else None
+        out = []
+        for _ in range(min(n, len(self._cards))):
+            out.append(self._cards.pop())
+        return out
+
+    def deal(self, num_hands: int, cards_per_hand: int):
+        hands = [[] for _ in range(num_hands)]
+        for _ in range(cards_per_hand):
+            for h in hands:
+                card = self.draw()
+                if card is None:
+                    return hands
+                h.append(card)
+        return hands
+
+    def remaining(self):
+        return len(self._cards)
+
+    def reset(self, decks: int = 1):
+        self.__init__(decks=decks, shuffle=True)
+
+@bot.command(help="Poker Spot Generator: Gives you a preflop hand and position at the table")
+async def preflop(ctx, position="", amount="", stack=0):
+	global StandardDeck
+	deck = StandardDeck()
+
+	positons = ["UTG", "UTG+1", "UTG+2", "MP2", "Hijack", "Cutoff", "Button", "Small", "Big"]
 	
+	# {positon -> ((card1, card2), stack)}
+	# players = {position}
+	return await ctx.send(id_to_card(deck.draw()))
+
+
 @bot.command(help="Play a game of coup")
 async def coup(ctx, *players: discord.Member):
 	global gameState 
@@ -226,10 +282,6 @@ async def coup(ctx, *players: discord.Member):
 		except discord.Forbidden:
 			await ctx.send(f"I couldn't DM {player.mention}. They might have DMs disabled.")
    
-@bot.command(help="Poker Spot Generator: Gives you a preflop hand and position at the table")
-async def preflop(ctx):
-	# TODO: build out to more than just preflop? Pass in stack size and auto generate stacks for other lpawys
-	return 1
 
 
 @bot.command(help="Simple Chat Level Clear/Reset Command for when you need Mr.Clean to wipe shit down")
