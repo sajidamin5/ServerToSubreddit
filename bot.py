@@ -205,7 +205,7 @@ def id_to_card(i: int) -> str:
 def card_to_id(rank: str, suit: str) -> int:
     return RANKS.index(rank) + SUITS.index(suit) * 13
 
-("Chat-GPT", "Raptor Mini	")
+("Chat-GPT", "Raptor Mini")
 class StandardDeck:
     """Efficient 52-card deck using ints 0..51."""
     def __init__(self, decks: int = 1, shuffle: bool = True):
@@ -241,16 +241,98 @@ class StandardDeck:
         self.__init__(decks=decks, shuffle=True)
 
 @bot.command(help="Poker Spot Generator: Gives you a preflop hand and position at the table")
-async def preflop(ctx, position="", amount="", stack=0):
+async def preflop(ctx, stack=0, position="", amount="", bigBlind=3, smallBlind=1):
 	global StandardDeck
 	deck = StandardDeck()
 
 	positons = ["UTG", "UTG+1", "UTG+2", "MP2", "Hijack", "Cutoff", "Button", "Small", "Big"]
-	
-	# {positon -> ((card1, card2), stack)}
-	# players = {position}
-	return await ctx.send(id_to_card(deck.draw()))
+	positonIndex = {p.lower(): i for i, p in enumerate(positons)}
 
+	table = {}
+	# (position, ((c1, c2), stack))
+	# is there a way to optimize this structure>?
+	# player = [position, stack, c1, c2]
+	# player = (pos, stack, c1, c2)
+	# is paradigm != meta ?
+	player = (random.choice(positons) if position == "" else position, 
+										 random.randint(0, 300) if stack == 0 else stack, 
+										 id_to_card(deck.draw()), id_to_card(deck.draw()))
+
+	# for x in range(len(positons)): 8i
+	# print(player)
+	# print(player[0])
+	# print(player[1])
+	# !ptable Button Button=150 Big=1000 Small=500
+
+
+	await ctx.send(player)
+	return await ptable(ctx, player[0], f"{player[0]}={player[1]}", f"Small={smallBlind}", f"Big={bigBlind}")
+
+
+
+# ASCII poker table helpers
+
+def _label_for(pos: str, stacks: dict | None, selected: bool) -> str:
+    """Return a centered label text with optional stack and selection marker."""
+    stack = ""
+    if stacks is not None:
+        # accept both pos and lower-case keys
+        stack_val = stacks.get(pos) if pos in stacks else stacks.get(pos.lower())
+        if stack_val is not None:
+            stack = f"({stack_val})"
+    label = f"{pos}{stack}"
+    if selected:
+        label = f"> {label} <"
+    return label
+
+def render_poker_table_ascii(selected_pos: str = "UTG", stacks: dict | None = None) -> str:
+	"""
+	Build a simple 9-seat ASCII table and highlight selected_pos.
+	Returns a string (already wrapped as a code block) suitable for ctx.send(...).
+	"""
+	# Normalize
+	sel = selected_pos.strip().lower() if selected_pos else ""
+	labels = []
+	POSITIONS = ["UTG", "UTG+1", "UTG+2", "MP2", "Hijack", "Cutoff", "Button", "Small", "Big"]
+	for pos in POSITIONS:
+		labels.append(_label_for(pos, stacks, pos.lower() == sel))
+
+	# choose column width to center-alig	everything
+	width = max(len(lbl) for lbl in labels) + 2
+	buffer = "                  "
+	def pad(txt): return txt.center(width)
+
+	# layout rows: top(0,1,2) middle-left(3) middle-right(4) bottom(5,6,7,8)
+	row1 = (buffer + "       ") + "   ".join(pad(labels[i]) for i in (0, 1, 2))
+	row2 = pad(labels[3]) + buffer * 3 + "                  " + pad(labels[4])
+	row3 = (buffer) + "   ".join(pad(labels[i]) for i in (5, 6, 7, 8))
+	header = "```" + "\n"
+	footer  = "\n" + "```"
+
+	# build and return as a code block for Discord
+	table = header + row1 + ("\n" * 4) + row2 + ("\n" * 4) + row3 + footer
+
+	return table
+
+@bot.command(help="Show an ASCII poker table and mark a given position")
+async def ptable(ctx, position: str = "UTG", *stack_pairs):
+	POSITIONS = ["UTG", "UTG+1", "UTG+2", "MP2", "Hijack", "Cutoff", "Button", "Small", "Big"]
+	stacks = {}
+	for p in stack_pairs:
+		if "=" in p:
+			key, val = p.split("=", 1)
+			try:
+				stacks[key.strip()] = int(val.strip())
+			except ValueError:
+				# ignore bad stack entry
+				continue
+
+	# validate position
+	if position.strip().lower() not in (p.lower() for p in POSITIONS):
+		return await ctx.send(f"Unknown position: {position}. Valid: {', '.join(POSITIONS)}")
+
+	ascii_table = render_poker_table_ascii(position, stacks or None)
+	await ctx.send(ascii_table)
 
 @bot.command(help="Play a game of coup")
 async def coup(ctx, *players: discord.Member):
