@@ -242,7 +242,6 @@ class StandardDeck:
 
 @bot.command(help="Poker Spot Generator: Gives you a preflop hand and position at the table")
 async def preflop(ctx, stack=0, position="", amount="", bigBlind=3, smallBlind=1):
-	global StandardDeck
 	deck = StandardDeck()
 
 	positons = ["UTG", "UTG+1", "UTG+2", "MP2", "Hijack", "Cutoff", "Button", "Small", "Big"]
@@ -254,6 +253,12 @@ async def preflop(ctx, stack=0, position="", amount="", bigBlind=3, smallBlind=1
 	# player = [position, stack, c1, c2]
 	# player = (pos, stack, c1, c2)
 	# is paradigm != meta ?
+
+	# TODO: add ranges for preflop betting
+	# - max 4x BB preflop bet into all in? 
+	# - rearise no all in max: 3x preflop bet
+	# - cap is like all in for stack
+
 	player = (random.choice(positons) if position == "" else position, 
 										 random.randint(0, 300) if stack == 0 else stack, 
 										 id_to_card(deck.draw()), id_to_card(deck.draw()))
@@ -266,7 +271,15 @@ async def preflop(ctx, stack=0, position="", amount="", bigBlind=3, smallBlind=1
 
 
 	await ctx.send(player)
-	return await ptable(ctx, player[0], f"{player[0]}={player[1]}", f"Small={smallBlind}", f"Big={bigBlind}")
+
+	if player[0] == "Small":
+		smallBlind = player[1]
+
+	if player[0] == "Big":
+		bigBlind = player[1]
+
+	return await ptable(ctx, player[0], f"{player[0]}={player[1]}", 
+					 	f"Small={smallBlind}", f"Big={bigBlind}")
 
 
 
