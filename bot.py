@@ -29,6 +29,8 @@ if not token:
 nltk.download('wordnet')
 
 hidden_gems = [":cucumber:", ":pretzel:", ":chipmunk:", ":llama:", ":hedgehog:", ":pickle:", ":peacock:", ":yo_yo:", ":jigsaw:", ":magic_wand:", ":jellyfish:", ":sewing_needle:", ":placard:", ":hook:", ":magnet:", ":test_tube:", ":petri_dish:", ":abacus:", ":teddy_bear:", ":crayon:", ":probing_cane:", ":mouse_trap:", ":puzzle_piece:", ":ringed_planet:", ":roll_of_paper:", ":seal:", ":wing:", ":worm:", ":zombie:", ":transgender_symbol:", ":ninja:", ":pirate_flag:", ":olive:", ":fondue:", ":waffle:", ":bagel:", ":teapot:", ":bubble_tea:", ":jar:", ":cockroach:", ":beetle:", ":beaver:", ":sloth:", ":otter:", ":skunk:", ":flamingo:", ":feather:", ":wing:", ":bone:", ":coral:", ":lotus:", ":potted_plant:", ":rock:", ":wood:", ":hut:", ":thread:", ":yarn:", ":knot:", ":safety_pin:"]
+champion_names = []
+
 
 intents = discord.Intents.all() 
 client = discord.Client(intents=intents)
@@ -254,7 +256,7 @@ async def preflop(ctx, stack=0, position="", amount="", bigBlind=3, smallBlind=1
 	# player = (pos, stack, c1, c2)
 	# is paradigm != meta ?
 
-	# TODO: add ranges for preflop betting
+	# TODO: add ranges for preflop betting?
 	# - max 4x BB preflop bet into all in? 
 	# - rearise no all in max: 3x preflop bet
 	# - cap is like all in for stack
@@ -740,10 +742,24 @@ async def penis(ctx):
 	for x in range(len):
 		shaft += "="
 	await ctx.channel.send(ctx.author.mention + " your cock is  8" + shaft + "D long")
-	
+
+
+@bot.command(help="CAMILLLLLLELEEEEE") 
+async def champion(ctx):
+	with open("/Users/Sajid/Desktop/ServerToSubreddit/champlist.txt") as f:
+		champ_list = f.read().split(",")
+		champ = champ_list[random.randint(0, len(champ_list) - 1)]
+		await ctx.channel.send(f"{ctx.author.mention} {champ}")
+
+	image_path = "/Users/Sajid/Desktop/ServerToSubreddit/champions"
+
+	with open(os.path.join(image_path, f"{champ}.png"), "rb") as f:
+		await ctx.send(file=discord.File(f, filename=f"{champ}.png"))
+
+
+
 @bot.command(help="who's that pokemon?")   
 async def pokemon(ctx, pokeName="none"):
-
 	if pokeName != "none":
 		pokeNum = reverse_pokedex.get(pokeName.lower())
 		if pokeNum == None:
