@@ -17,6 +17,7 @@ from collections import deque
 from discord import Embed
 from dotenv import load_dotenv
 import requests
+import math
 
 # Grab token from system rather than hardcoding that boy into the file
 load_dotenv()  # loads .env into environment for local dev
@@ -260,9 +261,10 @@ async def preflop(ctx, stack=0, position="", amount="", bigBlind=3, smallBlind=1
 	# - max 4x BB preflop bet into all in? 
 	# - rearise no all in max: 3x preflop bet
 	# - cap is like all in for stack
-
+	
+	mult = random.SystemRandom().uniform(1.0, 3.0)
 	player = (random.choice(positons) if position == "" else position, 
-										 random.randint(0, 300) if stack == 0 else stack, 
+										 math.floor(bigBlind * mult) if stack == 0 else stack, 
 										 id_to_card(deck.draw()), id_to_card(deck.draw()))
 
 	# for x in range(len(positons)): 8i
@@ -279,6 +281,8 @@ async def preflop(ctx, stack=0, position="", amount="", bigBlind=3, smallBlind=1
 
 	if player[0] == "Big":
 		bigBlind = player[1]
+
+	await ctx.send(f"Your Blind Multiplier is: {mult}")
 
 	return await ptable(ctx, player[0], f"{player[0]}={player[1]}", 
 					 	f"Small={smallBlind}", f"Big={bigBlind}")
