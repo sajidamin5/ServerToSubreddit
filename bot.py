@@ -251,27 +251,14 @@ async def preflop(ctx, stack=0, position="", amount="", bigBlind=3, smallBlind=1
 	positonIndex = {p.lower(): i for i, p in enumerate(positons)}
 
 	table = {}
-	# (position, ((c1, c2), stack))
-	# is there a way to optimize this structure>?
-	# player = [position, stack, c1, c2]
-	# player = (pos, stack, c1, c2)
-	# is paradigm != meta ?
-
-	# TODO: add ranges for preflop betting?
-	# - max 4x BB preflop bet into all in? 
-	# - rearise no all in max: 3x preflop bet
-	# - cap is like all in for stack
 	
+
+	# todo: label checks
+
 	mult = random.SystemRandom().uniform(1.0, 3.0)
 	player = (random.choice(positons) if position == "" else position, 
 										 math.floor(bigBlind * mult) if stack == 0 else stack, 
 										 id_to_card(deck.draw()), id_to_card(deck.draw()))
-
-	# for x in range(len(positons)): 8i
-	# print(player)
-	# print(player[0])
-	# print(player[1])
-	# !ptable Button Button=150 Big=1000 Small=500
 
 
 	await ctx.send(player)
@@ -312,18 +299,18 @@ def render_poker_table_ascii(selected_pos: str = "UTG", stacks: dict | None = No
 	# Normalize
 	sel = selected_pos.strip().lower() if selected_pos else ""
 	labels = []
-	POSITIONS = ["UTG", "UTG+1", "UTG+2", "MP2", "Hijack", "Cutoff", "Button", "Small", "Big"]
+	POSITIONS = ["UTG+2", "MP-1", "MP-2", "UTG", "HiJack", "Big", "Small", "Button", "CO"]
 	for pos in POSITIONS:
 		labels.append(_label_for(pos, stacks, pos.lower() == sel))
 
 	# choose column width to center-alig	everything
 	width = max(len(lbl) for lbl in labels) + 2
-	buffer = "                  "
+	buffer = "      	            "
 	def pad(txt): return txt.center(width)
 
 	# layout rows: top(0,1,2) middle-left(3) middle-right(4) bottom(5,6,7,8)
 	row1 = (buffer + "       ") + "   ".join(pad(labels[i]) for i in (0, 1, 2))
-	row2 = pad(labels[3]) + buffer * 3 + "                  " + pad(labels[4])
+	row2 = pad(labels[3]) + buffer * 3 + "             " + str(labels[4])
 	row3 = (buffer) + "   ".join(pad(labels[i]) for i in (5, 6, 7, 8))
 	header = "```" + "\n"
 	footer  = "\n" + "```"
