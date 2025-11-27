@@ -247,7 +247,7 @@ class StandardDeck:
 async def preflop(ctx, stack=0, position="", amount="", bigBlind=3, smallBlind=1):
 	deck = StandardDeck()
 
-	positons = ["UTG", "UTG+1", "UTG+2", "MP2", "Hijack", "Cutoff", "Button", "Small", "Big"]
+	positons = ["UTG", "UTG+1", "UTG+2", "MP1", "MP2", "Hijack", "Cutoff", "Button", "Small", "Big"]
 	positonIndex = {p.lower(): i for i, p in enumerate(positons)}
 
 	table = {}
