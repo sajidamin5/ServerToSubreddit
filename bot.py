@@ -81,8 +81,11 @@ async def word(ctx, word=""):
 	
 	# pick one lemma from that synset
 	lemma = random.choice(syn.lemmas())
+	await ctx.send(f"Definitions for **{lemma}**:")
+	for syn in lexicon.synsets(lemma):
+		await ctx.send(f"- {syn.definition()}\n")
 
-	await ctx.send(lemma)
+
 
 
 
