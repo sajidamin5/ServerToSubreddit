@@ -8,8 +8,6 @@ from discord.ext import commands
 from PIL import Image
 from datetime import datetime
 import json
-import nltk
-from nltk.corpus import wordnet
 import random
 import platform
 import sqlite3
@@ -18,6 +16,7 @@ from discord import Embed
 from dotenv import load_dotenv
 import requests
 import math
+import wn
 
 # Grab token from system rather than hardcoding that boy into the file
 load_dotenv()  # loads .env into environment for local dev
@@ -26,8 +25,6 @@ if not token:
     raise RuntimeError("DISCORD_TOKEN environment variable not set. Add to system vars or create .env with DISCORD_TOKEN=<token>")
 
 
-# run only the first time
-nltk.download('wordnet')
 
 hidden_gems = [":cucumber:", ":pretzel:", ":chipmunk:", ":llama:", ":hedgehog:", ":pickle:", ":peacock:", ":yo_yo:", ":jigsaw:", ":magic_wand:", ":jellyfish:", ":sewing_needle:", ":placard:", ":hook:", ":magnet:", ":test_tube:", ":petri_dish:", ":abacus:", ":teddy_bear:", ":crayon:", ":probing_cane:", ":mouse_trap:", ":puzzle_piece:", ":ringed_planet:", ":roll_of_paper:", ":seal:", ":wing:", ":worm:", ":zombie:", ":transgender_symbol:", ":ninja:", ":pirate_flag:", ":olive:", ":fondue:", ":waffle:", ":bagel:", ":teapot:", ":bubble_tea:", ":jar:", ":cockroach:", ":beetle:", ":beaver:", ":sloth:", ":otter:", ":skunk:", ":flamingo:", ":feather:", ":wing:", ":bone:", ":coral:", ":lotus:", ":potted_plant:", ":rock:", ":wood:", ":hut:", ":thread:", ":yarn:", ":knot:", ":safety_pin:"]
 champion_names = []
@@ -40,7 +37,7 @@ client = discord.Client(intents=intents)
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Set up the intents for your bot
-intents = discord.Intents.default()
+intents = discord.Intents.default() 
 intents.message_content = True
 intents.members = True
 intents.voice_states = True
@@ -62,6 +59,34 @@ if not platform.system() == "Darwin":
 
 # coup globals stuff
 gameState = None
+
+@bot.command(name='word', help="picks a random word")    	
+async def word(ctx, word=""):
+	word_length = len(word)
+
+	if wn.lexicons():
+		print("Some lexicon(s) installed")
+		print(f"lexicons: {wn.lexicons()}  num wordnets: {len(wn.words())}\n")
+		lexicon = wn.Wordnet('omw-en:1.4')
+
+	else:
+		print("No lexicons installed — need to download.")
+		# Download lexicons if they don't exist yet
+		wn.download('omw-en')
+
+	# Get synset
+	synsets = list(wn.Wordnet().synsets())
+
+	syn = random.choice(synsets)
+	
+	# pick one lemma from that synset
+	lemma = random.choice(syn.lemmas())
+
+	await ctx.send(lemma)
+
+
+
+
 
 class GameState:
 	def __init__(self, players):
@@ -253,7 +278,7 @@ async def preflop(ctx, stack=0, position="", amount="", bigBlind=3, smallBlind=1
 	table = {}
 	
 
-	# todo: label checks
+	# TODO: label  
 
 	mult = random.SystemRandom().uniform(1.0, 3.0)
 	player = (random.choice(positons) if position == "" else position, 
@@ -740,7 +765,7 @@ async def champion(ctx):
 	with open("/Users/Sajid/Desktop/ServerToSubreddit/champlist.txt") as f:
 		champ_list = f.read().split(",")
 		champ = champ_list[random.randint(0, len(champ_list) - 1)]
-		await ctx.channel.send(f"{ctx.author.mention} {champ}")
+		# await ctx.channel.send(f"{ctx.author.mention} {champ}")
 
 	image_path = "/Users/Sajid/Desktop/ServerToSubreddit/champions"
 
@@ -868,27 +893,6 @@ async def get_messages(ctx, channel_id, start_date, end_date, author="default"):
 	# Send the file
 	await ctx.send("Here is the messages file:", file=discord.File(file_name))
 
-@bot.command(name='word', help="picks a random word")    
-async def word(ctx, word=""):
-	word_length = len(word)
-
-	# Get all lemmas in WordNet
-	all_lemmas = list(wordnet.all_lemma_names())
-
-
-	# Pick a random word
-	if word_length == 0:
-		word = random.choice(all_lemmas)
-	synsets = wordnet.synsets(word)
-
-	await ctx.send(f"Your{' **random**' if word_length == 0 else ''} word is: **{word.replace('_', ' ')}**")
-
-	if synsets:
-		for s in synsets:
-			definition_text = f"**Definition:** {s.definition()}"
-			await ctx.send(definition_text)
-	else:
-		await ctx.send("No definitions found.")
 
 @bot.command(name='shutdown', help="this kills the bot")
 async def shutdown(ctx):
