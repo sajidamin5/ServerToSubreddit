@@ -88,9 +88,6 @@ async def word(ctx, word=""):
 
 
 
-
-
-
 class GameState:
 	def __init__(self, players):
 
