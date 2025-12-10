@@ -69,16 +69,21 @@ def distinct_vowels(word=""):
     return vowel_count
 
 
-def line_counter(bar=""):
-    words = bar.split(' ')
-    for word in words:
-        print(distinct_vowels(word))
+
 
 def generate_freestyle(bar=""):
 
     with open("vowel_counts_grouped.pkl", "rb") as f:
         vowel_counts_grouped = pickle.load(f)
     
-    print(vowel_counts_grouped)
+    words = bar.split(" ")
+    new_bar = ""
+    for word in words:
+        # print(f"word: {word}, value: {distinct_vowels(word)}")
+        new_bar += " " + random.choice(vowel_counts_grouped[distinct_vowels(word)])
 
-generate_freestyle()
+    print(new_bar)
+
+
+
+generate_freestyle("I can go to sleep I been geek up")
