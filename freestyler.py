@@ -86,4 +86,4 @@ def generate_freestyle(bar=""):
 
 
 
-generate_freestyle("I can go to sleep I been geek up")
+generate_freestyle("Some shit just cringe worthy I don't even gotta say it I guess")
