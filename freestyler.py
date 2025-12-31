@@ -86,4 +86,4 @@ def generate_freestyle(bar=""):
 
 
 
-generate_freestyle("Some shit just cringe worthy I don't even gotta say it I guess")
+generate_freestyle("Cause I can't love my demons")

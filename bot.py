@@ -761,18 +761,28 @@ async def penis(ctx):
 
 
 @bot.command(help="CAMILLLLLLELEEEEE") 
-async def champion(ctx):
+async def champion(ctx, qty = 0):
 	with open("/Users/Sajid/Desktop/ServerToSubreddit/champlist.txt") as f:
 		champ_list = f.read().split(",")
-		champ = champ_list[random.randint(0, len(champ_list) - 1)]
-		# await ctx.channel.send(f"{ctx.author.mention} {champ}")
-
 	image_path = "/Users/Sajid/Desktop/ServerToSubreddit/champions"
 
-	with open(os.path.join(image_path, f"{champ}.png"), "rb") as f:
-		await ctx.send(file=discord.File(f, filename=f"{champ}.png"))
+	if qty == 0:
+		champ = champ_list[random.randint(0, len(champ_list) - 1)]
+		with open(os.path.join(image_path, f"{champ}.png"), "rb") as f:
+			print(f)
+			await ctx.send(file=discord.File(f, filename=f"{champ}.png"))
+	else:
+		files = []
+		for x in range(qty): 	
+			champ_found = False
+			while not champ_found:
+				champ = champ_list[random.randint(0, len(champ_list) - 1)]
+				champ_found = os.path.exists(os.path.join(image_path, f"{champ}.png"))
+			files.append(discord.File(os.path.join(image_path, f"{champ}.png")))
 
-
+		await ctx.send(
+			files=files
+		)
 
 @bot.command(help="who's that pokemon?")   
 async def pokemon(ctx, pokeName="none"):
