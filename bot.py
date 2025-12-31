@@ -761,14 +761,17 @@ async def penis(ctx):
 
 
 @bot.command(help="CAMILLLLLLELEEEEE") 
+# TODO: add role support (i.e. one champ per role or something)
+# TODO: add fix to prevent dupes
+
 async def champion(ctx, qty = 0):
 	with open("/Users/Sajid/Desktop/ServerToSubreddit/champlist.txt") as f:
 		champ_list = f.read().split(",")
-	image_path = "/Users/Sajid/Desktop/ServerToSubreddit/champions"
+	image_dir = "/Users/Sajid/Desktop/ServerToSubreddit/champions"
 
 	if qty == 0:
 		champ = champ_list[random.randint(0, len(champ_list) - 1)]
-		with open(os.path.join(image_path, f"{champ}.png"), "rb") as f:
+		with open(os.path.join(image_dir, f"{champ}.png"), "rb") as f:
 			print(f)
 			await ctx.send(file=discord.File(f, filename=f"{champ}.png"))
 	else:
@@ -777,8 +780,10 @@ async def champion(ctx, qty = 0):
 			champ_found = False
 			while not champ_found:
 				champ = champ_list[random.randint(0, len(champ_list) - 1)]
-				champ_found = os.path.exists(os.path.join(image_path, f"{champ}.png"))
-			files.append(discord.File(os.path.join(image_path, f"{champ}.png")))
+				image_path = os.path.join(image_dir, f"{champ}.png")
+
+				champ_found = os.path.exists(image_path)
+			files.append(discord.File(image_path))
 
 		await ctx.send(
 			files=files
